@@ -8,7 +8,7 @@ cask "futu-niuniu" do
   desc "富途证券官方交易软件，支持港股、美股、A股交易"
   homepage "https://www.futunn.com/"
 
-  app "FutuNiuniu.app", target: "富途牛牛.app"
+  app "富途牛牛.app"
 
   zap trash: [
     "~/Library/Application Support/Futu",
