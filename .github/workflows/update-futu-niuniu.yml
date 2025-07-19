@@ -1,0 +1,91 @@
+name: Update Futu Niuniu Cask
+
+on:
+  schedule:
+    # 每周一上午 10 点（UTC 时间）检查更新
+    - cron: '0 10 * * 1'
+  workflow_dispatch: # 允许手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-futu-niuniu.yml'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new version
+        id: check
+        run: |
+          # 获取当前 cask 中的版本
+          CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/futu-niuniu.rb | sed -E 's/.*version "(.*)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          
+          # 从官网获取最新版本信息
+          # 注意：这里需要解析官网的实际版本号，可能需要根据实际情况调整
+          DOWNLOAD_PAGE=$(curl -s https://www.futunn.com/download/mac)
+          
+          # 尝试从页面中提取版本号（根据实际页面结构可能需要调整）
+          LATEST_VERSION=$(echo "$DOWNLOAD_PAGE" | grep -oE 'Ver\.[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/Ver\.//')
+          
+          # 如果没找到，尝试从下载链接中提取
+          if [ -z "$LATEST_VERSION" ]; then
+            LATEST_VERSION=$(echo "$DOWNLOAD_PAGE" | grep -oE 'FTNN_desktop_[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/FTNN_desktop_//')
+          fi
+          
+          echo "Latest version: $LATEST_VERSION"
+          
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not determine latest version"
+            exit 0
+          fi
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "New version available: $LATEST_VERSION"
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Already up to date"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update cask file
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION=${{ steps.check.outputs.new_version }}
+          
+          # 下载新版本文件以计算 SHA256
+          NEW_URL="https://softwaredownload.futunn.com/FTNN_desktop_${NEW_VERSION}_Website.dmg"
+          echo "Downloading from: $NEW_URL"
+          
+          curl -L -o futu_new.dmg "$NEW_URL"
+          NEW_SHA256=$(sha256sum futu_new.dmg | cut -d' ' -f1)
+          
+          echo "New SHA256: $NEW_SHA256"
+          
+          # 更新 cask 文件
+          sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/futu-niuniu.rb
+          sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/futu-niuniu.rb
+          
+          # 清理下载的文件
+          rm futu_new.dmg
+
+      - name: Create Pull Request
+        if: steps.check.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
+          title: "Update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
+          body: |
+            Automated update of Futu Niuniu to version ${{ steps.check.outputs.new_version }}
+            
+            This PR was created automatically by GitHub Actions.
+          branch: update-futu-niuniu-${{ steps.check.outputs.new_version }}
+          delete-branch: true
