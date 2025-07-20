@@ -20,8 +20,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup GitHub CLI
-        uses: cli/cli@v2
+      # GitHub CLI is pre-installed on GitHub Actions runners
 
       - name: Check for new version
         id: check
