@@ -1,0 +1,115 @@
+name: Update Adobe Downloader Cask
+
+on:
+  schedule:
+    # 每天 UTC 时间上午 8 点检查更新
+    - cron: '0 8 * * *'
+  workflow_dispatch: # 允许手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-adobe-downloader.yml'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub CLI
+        uses: cli/cli@v2
+
+      - name: Check for new version
+        id: check
+        run: |
+          # 获取当前 cask 中的版本
+          CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/adobe-downloader.rb | sed -E 's/.*version "(.*)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          
+          # 从 GitHub API 获取最新版本信息
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest)
+          LATEST_VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name"' | sed -E 's/.*"tag_name": "v?([^"]+)".*/\1/')
+          
+          # 如果版本号带有 v 前缀，去掉它
+          LATEST_VERSION=${LATEST_VERSION#v}
+          
+          echo "Latest version: $LATEST_VERSION"
+          
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not determine latest version"
+            exit 1
+          fi
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "New version available: $LATEST_VERSION"
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            
+            # 获取下载 URL
+            DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | grep -E '"browser_download_url".*Adobe\.Downloader\.dmg"' | sed -E 's/.*"browser_download_url": "([^"]+)".*/\1/')
+            echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+          else
+            echo "Already up to date"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update cask file
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION=${{ steps.check.outputs.new_version }}
+          DOWNLOAD_URL=${{ steps.check.outputs.download_url }}
+          
+          # 下载新版本文件以计算 SHA256
+          echo "Downloading from: $DOWNLOAD_URL"
+          curl -L -o adobe_downloader_new.dmg "$DOWNLOAD_URL"
+          
+          # 计算 SHA256
+          NEW_SHA256=$(sha256sum adobe_downloader_new.dmg | cut -d' ' -f1)
+          echo "New SHA256: $NEW_SHA256"
+          
+          # 更新 cask 文件
+          sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
+          sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
+          
+          # 清理下载的文件
+          rm adobe_downloader_new.dmg
+
+      - name: Test updated cask
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # 安装 Homebrew（在 Ubuntu runner 上）
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          
+          # 测试 cask 语法
+          brew audit --cask Casks/adobe-downloader.rb || true
+
+      - name: Create Pull Request
+        if: steps.check.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
+          title: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
+          body: |
+            ## Automated update of Adobe Downloader to version ${{ steps.check.outputs.new_version }}
+            
+            This PR was created automatically by GitHub Actions.
+            
+            ### Changes:
+            - Updated version from current to ${{ steps.check.outputs.new_version }}
+            - Updated SHA256 checksum
+            
+            ### Source:
+            - [Latest Release](https://github.com/X1a0He/Adobe-Downloader/releases/latest)
+            
+            Please review and merge if the changes look correct.
+          branch: update-adobe-downloader-${{ steps.check.outputs.new_version }}
+          delete-branch: true
+          labels: |
+            automated
+            version-update
