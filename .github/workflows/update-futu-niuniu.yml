@@ -2,8 +2,8 @@ name: Update Futu Niuniu Cask
 
 on:
   schedule:
-    # 每天 UTC 时间上午 7 点检查更新
-    - cron: '0 7 * * *'
+    # 每天北京时间上午 7 点检查更新（UTC 时间 23 点，即前一天 23:00）
+    - cron: '0 23 * * *'
   workflow_dispatch: # 允许手动触发
   push:
     branches:

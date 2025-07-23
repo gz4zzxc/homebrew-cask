@@ -2,8 +2,8 @@ name: Update Adobe Downloader Cask
 
 on:
   schedule:
-    # 每天 UTC 时间上午 8 点检查更新
-    - cron: '0 8 * * *'
+    # 每天北京时间上午 8 点检查更新（UTC 时间 0 点）
+    - cron: '0 0 * * *'
   workflow_dispatch: # 允许手动触发
   push:
     branches:
