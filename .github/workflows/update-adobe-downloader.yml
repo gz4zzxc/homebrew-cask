@@ -125,6 +125,3 @@ jobs:
             Please review and merge if the changes look correct.
           branch: update-adobe-downloader-${{ steps.check.outputs.new_version }}
           delete-branch: true
-          labels: |
-            automated
-            version-update
