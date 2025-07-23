@@ -30,16 +30,28 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
           
           # 从 GitHub API 获取最新版本信息
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest)
-          LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+          LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest)
+          
+          # 调试：打印 API 响应的前 500 个字符
+          echo "API Response (first 500 chars): ${LATEST_RELEASE:0:500}"
+          
+          # 检查是否有 API 错误
+          if echo "$LATEST_RELEASE" | jq -e '.message' > /dev/null 2>&1; then
+            echo "GitHub API Error: $(echo "$LATEST_RELEASE" | jq -r '.message')"
+            exit 1
+          fi
+          
+          LATEST_VERSION=$(echo "$LATEST_RELEASE" | jq -r '.tag_name // empty')
           
           # 如果版本号带有 v 前缀，去掉它
           LATEST_VERSION=${LATEST_VERSION#v}
           
           echo "Latest version: $LATEST_VERSION"
           
-          if [ -z "$LATEST_VERSION" ]; then
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
             echo "Could not determine latest version"
+            echo "Full API response:"
+            echo "$LATEST_RELEASE"
             exit 1
           fi
           
