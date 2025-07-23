@@ -32,6 +32,7 @@ jobs:
           # 获取当前 cask 中的版本
           CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/adobe-downloader.rb | sed -E 's/.*version "(.*)"/\1/')
           echo "Current version: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           
           # 从 GitHub API 获取最新版本信息
           LATEST_RELEASE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest)
@@ -103,25 +104,17 @@ jobs:
           # 测试 cask 语法
           brew audit --cask Casks/adobe-downloader.rb || true
 
-      - name: Create Pull Request
+      - name: Commit and push changes
         if: steps.check.outputs.update_needed == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
-          commit-message: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
-          title: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
-          body: |
-            ## Automated update of Adobe Downloader to version ${{ steps.check.outputs.new_version }}
-            
-            This PR was created automatically by GitHub Actions.
-            
-            ### Changes:
-            - Updated version from current to ${{ steps.check.outputs.new_version }}
-            - Updated SHA256 checksum
-            
-            ### Source:
-            - [Latest Release](https://github.com/X1a0He/Adobe-Downloader/releases/latest)
-            
-            Please review and merge if the changes look correct.
-          branch: update-adobe-downloader-${{ steps.check.outputs.new_version }}
-          delete-branch: true
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          git add Casks/adobe-downloader.rb
+          git commit -m "chore: update Adobe Downloader to version ${{ steps.check.outputs.new_version }}
+          
+          - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
+          - Updated SHA256 checksum
+          - Source: https://github.com/X1a0He/Adobe-Downloader/releases/tag/${{ steps.check.outputs.new_version }}"
+          
+          git push

@@ -11,6 +11,9 @@ on:
     paths:
       - '.github/workflows/update-futu-niuniu.yml'
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -76,16 +79,12 @@ jobs:
           # 清理下载的文件
           rm futu_new.dmg
 
-      - name: Create Pull Request
+      - name: Commit and push changes
         if: steps.check.outputs.update_needed == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
-          title: "Update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
-          body: |
-            Automated update of Futu Niuniu to version ${{ steps.check.outputs.new_version }}
-            
-            This PR was created automatically by GitHub Actions.
-          branch: update-futu-niuniu-${{ steps.check.outputs.new_version }}
-          delete-branch: true
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          git add Casks/futu-niuniu.rb
+          git commit -m "chore: update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
+          git push
