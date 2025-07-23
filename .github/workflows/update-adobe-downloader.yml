@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
       # GitHub CLI is pre-installed on GitHub Actions runners
 
@@ -107,7 +107,7 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
           commit-message: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
           title: "Update Adobe Downloader to version ${{ steps.check.outputs.new_version }}"
           body: |
