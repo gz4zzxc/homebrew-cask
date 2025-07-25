@@ -14,6 +14,7 @@ brew tap yourusername/cask
 
 ```bash
 brew install --cask futu-niuniu
+brew install --cask aliyundrive
 ```
 
 ## 包含的应用
@@ -24,6 +25,13 @@ brew install --cask futu-niuniu
 
 - **版本**: 15.24.12308
 - **官网**: https://www.futunn.com/
+
+### 阿里云盘 (Aliyun Drive)
+
+阿里巴巴全球技术团队打造的个人网盘，具有下载不限速、不打扰、够安全、易于分享等特点。
+
+- **版本**: 6.8.7
+- **官网**: https://www.aliyundrive.com/
 
 ## 更新应用
 

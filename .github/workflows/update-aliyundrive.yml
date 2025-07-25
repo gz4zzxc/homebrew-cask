@@ -1,0 +1,117 @@
+name: Update Aliyun Drive Cask
+
+on:
+  schedule:
+    # 每天北京时间上午 8 点检查更新（UTC 时间 0 点）
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 允许手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-aliyundrive.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new version
+        id: check
+        run: |
+          # 获取当前 cask 中的版本
+          CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/aliyundrive.rb | sed -E 's/.*version "(.*)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          
+          # 安装 Homebrew（在 Ubuntu runner 上）
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+          # 使用 Homebrew 的 livecheck 机制来检测版本
+          echo "Using Homebrew livecheck to detect latest version..."
+          LATEST_VERSION=$(brew livecheck --cask ./Casks/aliyundrive.rb --json | jq -r '.[0].version.latest // empty' 2>/dev/null || echo "")
+
+          echo "Latest version from livecheck: $LATEST_VERSION"
+
+          # 如果 livecheck 失败，使用官方 Homebrew cask 作为参考
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Livecheck failed, checking official Homebrew cask..."
+
+            OFFICIAL_CASK=$(curl -s https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/a/adrive.rb)
+            LATEST_VERSION=$(echo "$OFFICIAL_CASK" | grep -E 'version "[0-9.]+"' | sed -E 's/.*version "(.*)"/\1/')
+
+            echo "Latest version from official cask: $LATEST_VERSION"
+          fi
+          
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Could not determine latest version"
+            exit 0
+          fi
+          
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "New version available: $LATEST_VERSION"
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Already up to date"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update cask file
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION=${{ steps.check.outputs.new_version }}
+          
+          # 下载新版本文件以计算 SHA256（ARM64 版本）
+          ARM64_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}-arm64.dmg"
+          INTEL_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}.dmg"
+          
+          echo "Downloading ARM64 version from: $ARM64_URL"
+          curl -L -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" -o aliyundrive_arm64.dmg "$ARM64_URL"
+          ARM64_SHA256=$(sha256sum aliyundrive_arm64.dmg | cut -d' ' -f1)
+          echo "ARM64 SHA256: $ARM64_SHA256"
+          
+          echo "Downloading Intel version from: $INTEL_URL"
+          curl -L -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" -o aliyundrive_intel.dmg "$INTEL_URL"
+          INTEL_SHA256=$(sha256sum aliyundrive_intel.dmg | cut -d' ' -f1)
+          echo "Intel SHA256: $INTEL_SHA256"
+          
+          # 更新 cask 文件
+          sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
+          sed -i "s/arm:   \".*\",/arm:   \"$ARM64_SHA256\",/" Casks/aliyundrive.rb
+          sed -i "s/intel: \".*\"/intel: \"$INTEL_SHA256\"/" Casks/aliyundrive.rb
+          
+          # 清理下载的文件
+          rm aliyundrive_arm64.dmg aliyundrive_intel.dmg
+
+      - name: Test updated cask
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # Homebrew 已在前面的步骤中安装
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+          # 测试 cask 语法
+          brew audit --cask Casks/aliyundrive.rb || true
+
+      - name: Commit and push changes
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          git add Casks/aliyundrive.rb
+          git commit -m "chore: update Aliyun Drive to version ${{ steps.check.outputs.new_version }}
+          
+          - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
+          - Updated SHA256 checksums for both ARM64 and Intel architectures
+          - Source: https://www.aliyundrive.com/download"
+          
+          git push
