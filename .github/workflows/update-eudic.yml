@@ -1,0 +1,133 @@
+name: Update Eudic Cask
+
+on:
+  schedule:
+    # 每天北京时间上午 9 点检查更新（UTC 时间 1 点）
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 允许手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-eudic.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new version
+        id: check
+        run: |
+          # 获取当前 cask 中的版本
+          CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/eudic.rb | sed -E 's/.*version "(.*)"/\1/')
+          echo "Current version: $CURRENT_VERSION"
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # 获取当前 cask 中的 SHA256
+          CURRENT_SHA256=$(grep -E 'sha256 "[a-f0-9]+"' Casks/eudic.rb | sed -E 's/.*sha256 "(.*)"/\1/')
+          echo "Current SHA256: $CURRENT_SHA256"
+
+          # 从官网下载页面获取最新版本信息
+          echo "Checking Eudic official download page for latest version..."
+
+          DOWNLOAD_PAGE=$(curl -s https://www.eudic.net/v4/en/app/download)
+
+          # 从页面中提取 Mac 版本的发布日期
+          MAC_RELEASE_DATE=$(echo "$DOWNLOAD_PAGE" | grep -A2 "欧路词典 Mac" | grep "发布日期" | sed -E 's/.*发布日期: ([0-9-]+).*/\1/')
+          echo "Mac release date: $MAC_RELEASE_DATE"
+
+          # 下载当前的 DMG 文件并计算 SHA256
+          echo "Downloading current DMG to check for changes..."
+          curl -L -o eudic_current.dmg "https://static.frdic.com/pkg/eudicmac.dmg"
+          CURRENT_DOWNLOAD_SHA256=$(sha256sum eudic_current.dmg | cut -d' ' -f1)
+
+          echo "Downloaded file SHA256: $CURRENT_DOWNLOAD_SHA256"
+
+          # 如果 SHA256 不同，说明有新版本
+          if [ "$CURRENT_SHA256" != "$CURRENT_DOWNLOAD_SHA256" ]; then
+            echo "SHA256 changed, new version detected"
+
+            # 尝试从 DMG 中提取版本信息
+            sudo apt-get update && sudo apt-get install -y p7zip-full
+            7z x eudic_current.dmg -o/tmp/eudic_extract >/dev/null 2>&1
+
+            # 查找 Info.plist 文件
+            INFO_PLIST=$(find /tmp/eudic_extract -name "Info.plist" -path "*/Eudic.app/Contents/Info.plist" | head -1)
+
+            if [ -n "$INFO_PLIST" ]; then
+              # 提取版本号
+              LATEST_VERSION=$(grep -A1 "CFBundleShortVersionString" "$INFO_PLIST" | grep "<string>" | sed -E 's/.*<string>(.*)<\/string>.*/\1/')
+              echo "Latest version from Info.plist: $LATEST_VERSION"
+            else
+              echo "Could not find Info.plist, using release date as version indicator"
+              # 如果无法获取版本号，使用发布日期作为版本标识
+              LATEST_VERSION=$(echo "$MAC_RELEASE_DATE" | tr '-' '.')
+            fi
+
+            # 清理临时文件
+            rm -rf /tmp/eudic_extract
+
+            if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+              echo "New version available: $LATEST_VERSION"
+              echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+              echo "new_sha256=$CURRENT_DOWNLOAD_SHA256" >> $GITHUB_OUTPUT
+              echo "update_needed=true" >> $GITHUB_OUTPUT
+            else
+              echo "Version number unchanged, but SHA256 different - updating SHA256 only"
+              echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+              echo "new_sha256=$CURRENT_DOWNLOAD_SHA256" >> $GITHUB_OUTPUT
+              echo "update_needed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No changes detected - already up to date"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # 清理下载的文件
+          rm -f eudic_current.dmg
+
+      - name: Update cask file
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION=${{ steps.check.outputs.new_version }}
+          NEW_SHA256=${{ steps.check.outputs.new_sha256 }}
+
+          echo "Updating cask file..."
+          echo "New version: $NEW_VERSION"
+          echo "New SHA256: $NEW_SHA256"
+
+          # 更新 cask 文件
+          sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/eudic.rb
+          sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/eudic.rb
+
+          echo "Cask file updated successfully"
+
+      - name: Test updated cask
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          # 检查 Ruby 语法
+          ruby -c Casks/eudic.rb
+          echo "Cask syntax is valid"
+
+      - name: Commit and push changes
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          git add Casks/eudic.rb
+          git commit -m "chore: update Eudic to version ${{ steps.check.outputs.new_version }}
+          
+          - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
+          - Updated SHA256 checksum
+          - Source: https://www.eudic.net/v4/en/app/download"
+          
+          git push
