@@ -112,40 +112,8 @@ brew upgrade --cask aliyundrive
 
 ## 🤝 贡献说明
 
-> **📝 重要提醒：个人自用仓库**
+> **个人自用仓库不接受贡献**
 >
-> 由于这是一个主要为个人使用而创建的仓库，对于外部贡献有以下说明：
-
-### 🔄 欢迎的贡献类型
-
-- 🐛 **Bug 修复**：修复现有 cask 的问题
-- 📚 **文档改进**：改进 README 或注释
-- 🔧 **自动化优化**：改进 GitHub Actions workflow
-- ⚡ **性能优化**：提升 cask 的安装体验
-
-### ⚠️ 有限支持的贡献
-
-- 🆕 **新应用添加**：仅考虑个人可能使用的应用
-- 🔄 **版本更新**：优先级较低（已有自动更新机制）
-- 🎨 **功能增强**：根据个人需求决定是否采纳
-
-### 📋 贡献步骤
-
-如果您的贡献符合上述类型，欢迎提交：
-
-1. Fork 本仓库
-2. 创建功能分支：`git checkout -b feature/improvement`
-3. 提交更改：`git commit -am 'Improve something'`
-4. 推送分支：`git push origin feature/improvement`
-5. 创建 Pull Request（请详细说明改进内容）
-
-### 💡 替代建议
-
-如果您需要添加大量新应用或有不同的维护需求，建议：
-
-- 🍴 **Fork 本仓库**：创建您自己的 tap
-- 🌟 **使用社区 tap**：寻找更活跃的社区维护的 tap
-- 🏗️ **创建新 tap**：为特定用途创建专门的 tap
 
 ## 📄 许可证
 
@@ -156,17 +124,6 @@ brew upgrade --cask aliyundrive
 - [Homebrew 官网](https://brew.sh/)
 - [Homebrew Cask 文档](https://docs.brew.sh/Cask-Cookbook)
 - [如何创建 Homebrew Cask](https://docs.brew.sh/Adding-Software-to-Homebrew)
-
----
-
-## 📞 联系方式
-
-如有问题或建议，可以通过以下方式联系：
-
-- 📧 **GitHub Issues**：[提交 Issue](../../issues)
-- 💬 **GitHub Discussions**：[参与讨论](../../discussions)
-
----
 
 ## 💡 免责声明
 
