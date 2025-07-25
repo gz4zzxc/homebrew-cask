@@ -72,28 +72,37 @@ jobs:
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update cask file
+      - name: Update cask file and README
         if: steps.check.outputs.update_needed == 'true'
         run: |
           NEW_VERSION=${{ steps.check.outputs.new_version }}
           NEW_SHA256=${{ steps.check.outputs.new_sha256 }}
+          NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
 
           echo "Updating cask file..."
           echo "New version: $NEW_VERSION"
           echo "New SHA256: $NEW_SHA256"
+          echo "Display version: $NEW_VERSION_DISPLAY"
 
           # 更新 cask 文件
           sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/eudic.rb
           sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/eudic.rb
 
-          echo "Cask file updated successfully"
+          # 更新 README.md 中的版本号
+          sed -i "s/| 📚 欧路词典 | \`eudic\` | [^|]* |/| 📚 欧路词典 | \`eudic\` | $NEW_VERSION_DISPLAY |/" README.md
 
-      - name: Test updated cask
+          echo "Cask file and README updated successfully"
+
+      - name: Test updated files
         if: steps.check.outputs.update_needed == 'true'
         run: |
           # 检查 Ruby 语法
           ruby -c Casks/eudic.rb
           echo "Cask syntax is valid"
+
+          # 验证 README.md 更新
+          grep "📚 欧路词典" README.md
+          echo "README.md updated successfully"
 
       - name: Commit and push changes
         if: steps.check.outputs.update_needed == 'true'
@@ -101,11 +110,12 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          git add Casks/eudic.rb
+          git add Casks/eudic.rb README.md
           git commit -m "chore: update Eudic to version ${{ steps.check.outputs.new_version }}
 
           - Updated version from ${{ steps.check.outputs.current_version }},${{ steps.check.outputs.current_build }} to ${{ steps.check.outputs.new_version }}
           - Updated SHA256 checksum
+          - Updated README.md version table
           - Source: https://static.eudic.net/pkg/eudic_mac.xml"
           
           git push

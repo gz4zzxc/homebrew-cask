@@ -75,7 +75,10 @@ jobs:
           # 更新 cask 文件
           sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/futu-niuniu.rb
           sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/futu-niuniu.rb
-          
+
+          # 更新 README.md 中的版本号
+          sed -i "s/| 📈 富途牛牛 | \`futu-niuniu\` | [^|]* |/| 📈 富途牛牛 | \`futu-niuniu\` | $NEW_VERSION |/" README.md
+
           # 清理下载的文件
           rm futu_new.dmg
 
@@ -85,6 +88,11 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          git add Casks/futu-niuniu.rb
-          git commit -m "chore: update Futu Niuniu to version ${{ steps.check.outputs.new_version }}"
+          git add Casks/futu-niuniu.rb README.md
+          git commit -m "chore: update Futu Niuniu to version ${{ steps.check.outputs.new_version }}
+
+          - Updated version from previous to ${{ steps.check.outputs.new_version }}
+          - Updated SHA256 checksum
+          - Updated README.md version table
+          - Source: https://www.futunn.com/"
           git push

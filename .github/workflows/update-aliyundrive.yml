@@ -76,7 +76,10 @@ jobs:
           sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
           sed -i "s/arm:   \".*\",/arm:   \"$ARM64_SHA256\",/" Casks/aliyundrive.rb
           sed -i "s/intel: \".*\"/intel: \"$INTEL_SHA256\"/" Casks/aliyundrive.rb
-          
+
+          # 更新 README.md 中的版本号
+          sed -i "s/| 🔥 阿里云盘 | \`aliyundrive\` | [^|]* |/| 🔥 阿里云盘 | \`aliyundrive\` | $NEW_VERSION |/" README.md
+
           # 清理下载的文件
           rm aliyundrive_arm64.dmg aliyundrive_intel.dmg
 
@@ -96,11 +99,12 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          git add Casks/aliyundrive.rb
+          git add Casks/aliyundrive.rb README.md
           git commit -m "chore: update Aliyun Drive to version ${{ steps.check.outputs.new_version }}
-          
+
           - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
           - Updated SHA256 checksums for both ARM64 and Intel architectures
+          - Updated README.md version table
           - Source: https://www.aliyundrive.com/download"
           
           git push
