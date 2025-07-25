@@ -26,73 +26,51 @@ jobs:
       - name: Check for new version
         id: check
         run: |
-          # 获取当前 cask 中的版本
-          CURRENT_VERSION=$(grep -E 'version "[0-9.]+"' Casks/eudic.rb | sed -E 's/.*version "(.*)"/\1/')
-          echo "Current version: $CURRENT_VERSION"
+          # 获取当前 cask 中的版本（支持逗号分隔格式）
+          CURRENT_VERSION_FULL=$(grep -E 'version "[^"]*"' Casks/eudic.rb | sed -E 's/.*version "(.*)"/\1/')
+          CURRENT_VERSION=$(echo "$CURRENT_VERSION_FULL" | cut -d',' -f1)
+          CURRENT_BUILD=$(echo "$CURRENT_VERSION_FULL" | cut -d',' -f2)
+          echo "Current version: $CURRENT_VERSION (build: $CURRENT_BUILD)"
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "current_build=$CURRENT_BUILD" >> $GITHUB_OUTPUT
 
           # 获取当前 cask 中的 SHA256
           CURRENT_SHA256=$(grep -E 'sha256 "[a-f0-9]+"' Casks/eudic.rb | sed -E 's/.*sha256 "(.*)"/\1/')
           echo "Current SHA256: $CURRENT_SHA256"
 
-          # 从官网下载页面获取最新版本信息
-          echo "Checking Eudic official download page for latest version..."
+          # 从 Sparkle 更新源获取最新版本信息
+          echo "Checking Eudic Sparkle feed for latest version..."
+          SPARKLE_XML=$(curl -s "https://static.eudic.net/pkg/eudic_mac.xml")
 
-          DOWNLOAD_PAGE=$(curl -s https://www.eudic.net/v4/en/app/download)
+          # 从 XML 中提取最新版本信息
+          LATEST_VERSION=$(echo "$SPARKLE_XML" | grep -o 'sparkle:shortVersionString="[^"]*"' | head -1 | sed 's/sparkle:shortVersionString="//;s/"//')
+          LATEST_BUILD=$(echo "$SPARKLE_XML" | grep -o 'sparkle:version="[^"]*"' | head -1 | sed 's/sparkle:version="//;s/"//')
+          LATEST_URL=$(echo "$SPARKLE_XML" | grep -o 'url="[^"]*eudicmac\.dmg[^"]*"' | head -1 | sed 's/url="//;s/"//')
 
-          # 从页面中提取 Mac 版本的发布日期
-          MAC_RELEASE_DATE=$(echo "$DOWNLOAD_PAGE" | grep -A2 "欧路词典 Mac" | grep "发布日期" | sed -E 's/.*发布日期: ([0-9-]+).*/\1/')
-          echo "Mac release date: $MAC_RELEASE_DATE"
+          echo "Latest version: $LATEST_VERSION (build: $LATEST_BUILD)"
+          echo "Download URL: $LATEST_URL"
 
-          # 下载当前的 DMG 文件并计算 SHA256
-          echo "Downloading current DMG to check for changes..."
-          curl -L -o eudic_current.dmg "https://static.frdic.com/pkg/eudicmac.dmg"
-          CURRENT_DOWNLOAD_SHA256=$(sha256sum eudic_current.dmg | cut -d' ' -f1)
+          # 检查是否有新版本
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] || [ "$CURRENT_BUILD" != "$LATEST_BUILD" ]; then
+            echo "New version detected: $LATEST_VERSION,$LATEST_BUILD"
 
-          echo "Downloaded file SHA256: $CURRENT_DOWNLOAD_SHA256"
+            # 下载新版本并计算 SHA256
+            echo "Downloading latest version to calculate SHA256..."
+            curl -L -o eudic_latest.dmg "$LATEST_URL"
+            LATEST_SHA256=$(sha256sum eudic_latest.dmg | cut -d' ' -f1)
 
-          # 如果 SHA256 不同，说明有新版本
-          if [ "$CURRENT_SHA256" != "$CURRENT_DOWNLOAD_SHA256" ]; then
-            echo "SHA256 changed, new version detected"
+            echo "Latest SHA256: $LATEST_SHA256"
 
-            # 尝试从 DMG 中提取版本信息
-            sudo apt-get update && sudo apt-get install -y p7zip-full
-            7z x eudic_current.dmg -o/tmp/eudic_extract >/dev/null 2>&1
+            echo "new_version=$LATEST_VERSION,$LATEST_BUILD" >> $GITHUB_OUTPUT
+            echo "new_sha256=$LATEST_SHA256" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
 
-            # 查找 Info.plist 文件
-            INFO_PLIST=$(find /tmp/eudic_extract -name "Info.plist" -path "*/Eudic.app/Contents/Info.plist" | head -1)
-
-            if [ -n "$INFO_PLIST" ]; then
-              # 提取版本号
-              LATEST_VERSION=$(grep -A1 "CFBundleShortVersionString" "$INFO_PLIST" | grep "<string>" | sed -E 's/.*<string>(.*)<\/string>.*/\1/')
-              echo "Latest version from Info.plist: $LATEST_VERSION"
-            else
-              echo "Could not find Info.plist, using release date as version indicator"
-              # 如果无法获取版本号，使用发布日期作为版本标识
-              LATEST_VERSION=$(echo "$MAC_RELEASE_DATE" | tr '-' '.')
-            fi
-
-            # 清理临时文件
-            rm -rf /tmp/eudic_extract
-
-            if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
-              echo "New version available: $LATEST_VERSION"
-              echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-              echo "new_sha256=$CURRENT_DOWNLOAD_SHA256" >> $GITHUB_OUTPUT
-              echo "update_needed=true" >> $GITHUB_OUTPUT
-            else
-              echo "Version number unchanged, but SHA256 different - updating SHA256 only"
-              echo "new_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-              echo "new_sha256=$CURRENT_DOWNLOAD_SHA256" >> $GITHUB_OUTPUT
-              echo "update_needed=true" >> $GITHUB_OUTPUT
-            fi
+            # 清理下载的文件
+            rm -f eudic_latest.dmg
           else
-            echo "No changes detected - already up to date"
+            echo "Already up to date - no changes needed"
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
-
-          # 清理下载的文件
-          rm -f eudic_current.dmg
 
       - name: Update cask file
         if: steps.check.outputs.update_needed == 'true'
@@ -125,9 +103,9 @@ jobs:
           
           git add Casks/eudic.rb
           git commit -m "chore: update Eudic to version ${{ steps.check.outputs.new_version }}
-          
-          - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
+
+          - Updated version from ${{ steps.check.outputs.current_version }},${{ steps.check.outputs.current_build }} to ${{ steps.check.outputs.new_version }}
           - Updated SHA256 checksum
-          - Source: https://www.eudic.net/v4/en/app/download"
+          - Source: https://static.eudic.net/pkg/eudic_mac.xml"
           
           git push
