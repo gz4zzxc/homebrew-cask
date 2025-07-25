@@ -31,25 +31,13 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           
-          # 安装 Homebrew（在 Ubuntu runner 上）
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          # 使用官方 Homebrew cask 作为版本参考
+          echo "Checking official Homebrew cask for latest version..."
 
-          # 使用 Homebrew 的 livecheck 机制来检测版本
-          echo "Using Homebrew livecheck to detect latest version..."
-          LATEST_VERSION=$(brew livecheck --cask ./Casks/aliyundrive.rb --json | jq -r '.[0].version.latest // empty' 2>/dev/null || echo "")
+          OFFICIAL_CASK=$(curl -s https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/a/adrive.rb)
+          LATEST_VERSION=$(echo "$OFFICIAL_CASK" | grep -E 'version "[0-9.]+"' | sed -E 's/.*version "(.*)"/\1/')
 
-          echo "Latest version from livecheck: $LATEST_VERSION"
-
-          # 如果 livecheck 失败，使用官方 Homebrew cask 作为参考
-          if [ -z "$LATEST_VERSION" ]; then
-            echo "Livecheck failed, checking official Homebrew cask..."
-
-            OFFICIAL_CASK=$(curl -s https://raw.githubusercontent.com/Homebrew/homebrew-cask/master/Casks/a/adrive.rb)
-            LATEST_VERSION=$(echo "$OFFICIAL_CASK" | grep -E 'version "[0-9.]+"' | sed -E 's/.*version "(.*)"/\1/')
-
-            echo "Latest version from official cask: $LATEST_VERSION"
-          fi
+          echo "Latest version from official cask: $LATEST_VERSION"
           
           if [ -z "$LATEST_VERSION" ]; then
             echo "Could not determine latest version"
@@ -95,7 +83,8 @@ jobs:
       - name: Test updated cask
         if: steps.check.outputs.update_needed == 'true'
         run: |
-          # Homebrew 已在前面的步骤中安装
+          # 安装 Homebrew 用于测试
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
           # 测试 cask 语法
