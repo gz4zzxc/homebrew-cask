@@ -5,7 +5,9 @@ cask "aliyundrive" do
   sha256 arm:   "a5fac122ff59da06a75b3cddc99f3c6709b1984cdb4ed669bc4f3bcd6b0ced2e",
          intel: "6143981df9189d58ea213d5d3eb088559ed10510ec4e9b0c1f02960947f59fef"
 
-  url "https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-#{version}#{arch}.dmg"
+  url "https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-#{version}#{arch}.dmg",
+      verified:   "cdn.aliyundrive.net/",
+      user_agent: :fake
   name "Aliyun Drive"
   name "阿里云盘"
   desc "Personal cloud storage service by Alibaba Group"
