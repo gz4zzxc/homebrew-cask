@@ -1,17 +1,17 @@
 cask "eudic" do
-  version "4.7.8"
-  sha256 "b28e782cdde09b19cbcb1b907c4da2a7eeb5c20e0be91b858478504fa1f18ba7"
+  version "25.7.1,1178"
+  sha256 "4f1453b9d54361ea8440feb61f3ad00c723652362e14248fc5dd6f00bab9afa2"
 
-  url "https://static.frdic.com/pkg/eudicmac.dmg",
-      verified: "static.frdic.com/"
+  url "https://static.eudic.net/pkg/eudicmac.dmg?v=#{version.csv.second}",
+      verified: "static.eudic.net/"
   name "Eudic"
   name "欧路词典"
   desc "Dictionary and translation application"
   homepage "https://www.eudic.net/"
 
   livecheck do
-    url "https://www.eudic.net/v4/en/app/download"
-    regex(/eudicmac\.dmg\?v=(\d+(?:-\d+)+)/i)
+    url "https://static.eudic.net/pkg/eudic_mac.xml"
+    strategy :sparkle, &:short_version
   end
 
   depends_on macos: ">= :catalina"
