@@ -1,4 +1,12 @@
-# Homebrew Cask Tap
+# 🏠 个人 Homebrew Cask Tap
+
+> **⚠️ 注意：这是一个个人自用的 Homebrew Cask 仓库**
+>
+> 本仓库主要为个人使用而创建，包含一些官方 Homebrew 未收录或需要特定配置的 macOS 应用。虽然欢迎其他用户使用，但请注意：
+> - 🔧 **维护优先级**：优先满足个人需求，可能不会及时响应外部需求
+> - 📱 **应用选择**：主要收录个人常用的应用，不保证覆盖面
+> - 🚀 **更新频率**：根据个人使用情况决定更新优先级
+> - 💡 **建议**：如需稳定的第三方 cask，建议使用社区维护的大型 tap
 
 这是一个自定义的 Homebrew Cask 仓库，用于安装一些官方 Homebrew 未收录或需要特定配置的 macOS 应用。
 
@@ -18,6 +26,9 @@ brew install --cask futu-niuniu
 
 # 安装阿里云盘
 brew install --cask aliyundrive
+
+# 安装欧路词典
+brew install --cask eudic
 
 # 安装 Adobe Downloader
 brew install --cask adobe-downloader
@@ -62,10 +73,31 @@ brew upgrade --cask aliyundrive
 - **官网**: [www.futunn.com](https://www.futunn.com/)
 
 **特色功能**:
+
 - 📊 实时行情数据
 - 💰 多市场交易支持
 - 📈 专业分析工具
 - 🔔 智能提醒功能
+
+### 📚 欧路词典 (Eudic)
+
+专业的英语词典和翻译应用，支持多种词典格式和强大的学习功能。
+
+- **Cask 名称**: `eudic`
+- **当前版本**: 25.7.1
+- **支持架构**: Universal
+- **自动更新**: ✅ 每日检查
+- **官网**: [www.eudic.net](https://www.eudic.net/)
+
+**特色功能**:
+
+- 📖 支持多种词典格式 (MDX, StarDict 等)
+- 🔍 强大的全文搜索功能
+- 📝 生词本和学习记录同步
+- 🎯 划词取词和屏幕取词
+- 🔊 真人发音和 TTS 语音
+- 🌐 在线翻译和 AI 翻译
+- 📱 跨平台数据同步
 
 ### 🎨 Adobe Downloader
 
@@ -138,23 +170,42 @@ Adobe 应用下载工具，提供 Creative Cloud 的替代下载方案。
   - ✅ Apple Silicon (M1/M2/M3)
   - ✅ Intel x86_64
 
-## 🤝 贡献
+## 🤝 贡献说明
 
-欢迎提交 Pull Request 来：
+> **📝 重要提醒：个人自用仓库**
+>
+> 由于这是一个主要为个人使用而创建的仓库，对于外部贡献有以下说明：
 
-- 🆕 添加新的应用
-- 🔄 更新现有应用版本
-- 🐛 修复 bug
-- 📚 改进文档
-- 🔧 优化自动更新机制
+### 🔄 欢迎的贡献类型
 
-### 贡献步骤
+- 🐛 **Bug 修复**：修复现有 cask 的问题
+- 📚 **文档改进**：改进 README 或注释
+- 🔧 **自动化优化**：改进 GitHub Actions workflow
+- ⚡ **性能优化**：提升 cask 的安装体验
+
+### ⚠️ 有限支持的贡献
+
+- 🆕 **新应用添加**：仅考虑个人可能使用的应用
+- 🔄 **版本更新**：优先级较低（已有自动更新机制）
+- 🎨 **功能增强**：根据个人需求决定是否采纳
+
+### 📋 贡献步骤
+
+如果您的贡献符合上述类型，欢迎提交：
 
 1. Fork 本仓库
-2. 创建功能分支：`git checkout -b feature/new-app`
-3. 提交更改：`git commit -am 'Add new app'`
-4. 推送分支：`git push origin feature/new-app`
-5. 创建 Pull Request
+2. 创建功能分支：`git checkout -b feature/improvement`
+3. 提交更改：`git commit -am 'Improve something'`
+4. 推送分支：`git push origin feature/improvement`
+5. 创建 Pull Request（请详细说明改进内容）
+
+### 💡 替代建议
+
+如果您需要添加大量新应用或有不同的维护需求，建议：
+
+- 🍴 **Fork 本仓库**：创建您自己的 tap
+- 🌟 **使用社区 tap**：寻找更活跃的社区维护的 tap
+- 🏗️ **创建新 tap**：为特定用途创建专门的 tap
 
 ## 📄 许可证
 
@@ -168,4 +219,23 @@ Adobe 应用下载工具，提供 Creative Cloud 的替代下载方案。
 
 ---
 
-**⭐ 如果这个项目对您有帮助，请给个 Star！**
+## 📞 联系方式
+
+如有问题或建议，可以通过以下方式联系：
+
+- 📧 **GitHub Issues**：[提交 Issue](../../issues)
+- 💬 **GitHub Discussions**：[参与讨论](../../discussions)
+
+---
+
+## 💡 免责声明
+
+本仓库为个人学习和使用目的创建，不保证：
+
+- 应用的及时更新
+- 技术支持的及时响应
+- 与所有系统的兼容性
+
+使用前请确保了解相关风险。
+
+**⭐ 如果这个项目对您有帮助，欢迎给个 Star！**
