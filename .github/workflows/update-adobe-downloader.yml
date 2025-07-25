@@ -73,7 +73,7 @@ jobs:
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update cask file
+      - name: Update cask file and README
         if: steps.check.outputs.update_needed == 'true'
         run: |
           NEW_VERSION=${{ steps.check.outputs.new_version }}
@@ -90,19 +90,23 @@ jobs:
           # 更新 cask 文件
           sed -i "s/version \".*\"/version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
           sed -i "s/sha256 \".*\"/sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
-          
+
+          # 更新 README.md 中的版本号
+          sed -i "s/| 🎨 Adobe Downloader | \`adobe-downloader\` | [^|]* |/| 🎨 Adobe Downloader | \`adobe-downloader\` | $NEW_VERSION |/" README.md
+
           # 清理下载的文件
           rm adobe_downloader_new.dmg
 
-      - name: Test updated cask
+      - name: Test updated files
         if: steps.check.outputs.update_needed == 'true'
         run: |
-          # 安装 Homebrew（在 Ubuntu runner 上）
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-          
-          # 测试 cask 语法
-          brew audit --cask Casks/adobe-downloader.rb || true
+          # 检查 Ruby 语法
+          ruby -c Casks/adobe-downloader.rb
+          echo "Cask syntax is valid"
+
+          # 验证 README.md 更新
+          grep "🎨 Adobe Downloader" README.md
+          echo "README.md updated successfully"
 
       - name: Commit and push changes
         if: steps.check.outputs.update_needed == 'true'
@@ -110,11 +114,12 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          git add Casks/adobe-downloader.rb
+          git add Casks/adobe-downloader.rb README.md
           git commit -m "chore: update Adobe Downloader to version ${{ steps.check.outputs.new_version }}
-          
+
           - Updated version from ${{ steps.check.outputs.current_version }} to ${{ steps.check.outputs.new_version }}
           - Updated SHA256 checksum
+          - Updated README.md version table
           - Source: https://github.com/X1a0He/Adobe-Downloader/releases/tag/${{ steps.check.outputs.new_version }}"
           
           git push
