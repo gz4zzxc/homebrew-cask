@@ -24,14 +24,40 @@ cask "catalyst-browse" do
     support_dir = "#{Dir.home}/Library/Application Support/Catalyst Browse"
     system_command "/bin/mkdir", args: ["-p", support_dir]
 
-    # Try to prevent first-run tutorial by creating a marker file
-    # This is a best-effort attempt to avoid the automatic browser opening
-    marker_file = "#{support_dir}/.tutorial_shown"
-    system_command "/usr/bin/touch", args: [marker_file]
+    # Try to prevent first-run tutorial by creating multiple marker files
+    marker_files = [
+      "#{support_dir}/.tutorial_shown",
+      "#{support_dir}/.first_launch_done",
+      "#{support_dir}/.welcome_shown",
+      "#{support_dir}/tutorial_completed",
+    ]
+    marker_files.each do |file|
+      system_command "/usr/bin/touch", args: [file]
+    end
 
-    # Set some preferences to potentially disable first-run behavior
-    system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", "FirstLaunch", "-bool", "false"]
-    system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", "ShowTutorial", "-bool", "false"]
+    # Set comprehensive preferences to disable first-run behavior
+    prefs = [
+      ["FirstLaunch", "false"],
+      ["ShowTutorial", "false"],
+      ["WelcomeShown", "true"],
+      ["TutorialCompleted", "true"],
+      ["FirstRun", "false"],
+      ["ShowWelcome", "false"],
+      ["InitialSetupDone", "true"],
+      ["HasLaunchedBefore", "true"],
+    ]
+
+    prefs.each do |key, value|
+      system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", key, "-bool", value]
+    end
+
+    # Also try setting for potential alternative preference domains
+    alt_domains = ["com.sony.CatalystBrowse", "com.sony.SonyCreativeSoftware.Browse"]
+    alt_domains.each do |domain|
+      prefs.each do |key, value|
+        system_command "/usr/bin/defaults", args: ["write", domain, key, "-bool", value], print_stderr: false
+      end
+    end
   end
 
   uninstall pkgutil: "com.sony.SonyCreativeSoftware.Browse"
@@ -46,9 +72,13 @@ cask "catalyst-browse" do
 
   caveats do
     <<~EOS
-      Note: Sony Catalyst Browse may automatically open a tutorial webpage
-      (https://www.sony.com/electronics/support/articles/CCCT06000) when first launched.
-      This is normal behavior and can be safely closed.
+      Sony Catalyst Browse may open a tutorial webpage on first launch despite
+      preventive measures. If this happens:
+      1. Simply close the browser tab/window
+      2. The tutorial should not appear on subsequent launches
+
+      This behavior is from Sony's application and cannot be completely prevented
+      during installation.
     EOS
   end
 end
