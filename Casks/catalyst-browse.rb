@@ -17,7 +17,9 @@ cask "catalyst-browse" do
   auto_updates true
   depends_on macos: ">= :monterey"
 
-  app "Catalyst Browse.app"
+  pkg "Catalyst Browse #{version}.pkg"
+
+  uninstall pkgutil: "com.sony.CatalystBrowse"
 
   zap trash: [
     "~/Library/Application Support/Catalyst Browse",
