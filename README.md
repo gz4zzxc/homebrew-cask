@@ -32,6 +32,9 @@ brew install --cask eudic
 
 # 安装 Adobe Downloader
 brew install --cask adobe-downloader
+
+# 安装 Sony Catalyst Browse
+brew install --cask catalyst-browse
 ```
 
 ### 3. 更新应用
@@ -52,6 +55,7 @@ brew upgrade --cask aliyundrive
 | 📈 富途牛牛 | `futu-niuniu` | 15.24.12308 | Universal | ✅ | [官网](https://www.futunn.com/) |
 | 📚 欧路词典 | `eudic` | 25.7.1 | Universal | ✅ | [官网](https://www.eudic.net/) |
 | 🎨 Adobe Downloader | `adobe-downloader` | 2.1.1 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
+| 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
 
 ## 🔄 自动更新机制
 
