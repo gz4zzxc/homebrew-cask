@@ -19,7 +19,22 @@ cask "catalyst-browse" do
 
   pkg "Catalyst Browse #{version}.pkg"
 
-  uninstall pkgutil: "com.sony.CatalystBrowse"
+  postflight do
+    # Create application support directory if it doesn't exist
+    support_dir = "#{Dir.home}/Library/Application Support/Catalyst Browse"
+    system_command "/bin/mkdir", args: ["-p", support_dir]
+
+    # Try to prevent first-run tutorial by creating a marker file
+    # This is a best-effort attempt to avoid the automatic browser opening
+    marker_file = "#{support_dir}/.tutorial_shown"
+    system_command "/usr/bin/touch", args: [marker_file]
+
+    # Set some preferences to potentially disable first-run behavior
+    system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", "FirstLaunch", "-bool", "false"]
+    system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", "ShowTutorial", "-bool", "false"]
+  end
+
+  uninstall pkgutil: "com.sony.SonyCreativeSoftware.Browse"
 
   zap trash: [
     "~/Library/Application Support/Catalyst Browse",
@@ -28,4 +43,12 @@ cask "catalyst-browse" do
     "~/Library/Preferences/com.sony.CatalystBrowse.plist",
     "~/Library/Saved Application State/com.sony.CatalystBrowse.savedState",
   ]
+
+  caveats do
+    <<~EOS
+      Note: Sony Catalyst Browse may automatically open a tutorial webpage
+      (https://www.sony.com/electronics/support/articles/CCCT06000) when first launched.
+      This is normal behavior and can be safely closed.
+    EOS
+  end
 end
