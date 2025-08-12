@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+
+## 项目结构导航（Homebrew Cask Tap）
+
+本仓库为个人自用的 Homebrew Cask Tap，核心目录与文档如下（点击直达）：
+
+- `Casks/`：存放每个应用的 cask 定义（Ruby）
+  - 参考示例：
+    - [Casks/aliyundrive.rb](mdc:Casks/aliyundrive.rb)
+    - [Casks/futu-niuniu.rb](mdc:Casks/futu-niuniu.rb)
+    - [Casks/eudic.rb](mdc:Casks/eudic.rb)
+    - [Casks/adobe-downloader.rb](mdc:Casks/adobe-downloader.rb)
+    - [Casks/catalyst-browse.rb](mdc:Casks/catalyst-browse.rb)
+
+- 顶层文档：
+  - 使用与应用清单：[README.md](mdc:README.md)
+  - 更新与贡献规范：[CONTRIBUTING.md](mdc:CONTRIBUTING.md)
+  - 辅助型 AI 指南：[CLAUDE.md](mdc:CLAUDE.md)
+
+### 关键约定
+
+- 本仓库为个人自用 tap，优先保证稳定、简单与可维护性。
+- 所有应用版本更新需保持 `Casks/*.rb` 与 `README.md` 表格中的版本一致。
+- cask 编写遵循 Homebrew Cask DSL 规范，并尽量提供 `livecheck`、`zap`、及准确的 `depends_on`。
+- 对于多架构下载：优先使用 `arch` 与分架构 `sha256` 格式；必要时在 `url` 使用 `version.csv` 片段。
+
+### 修改前检查
+
+在新增或修改 cask 前，建议先阅读：
+
+- 「Cask DSL 风格与约定」（本规则集中的相关条目，适用于 `Casks/*.rb`）
+- 「版本同步与自动化更新」（确保版本、校验和与文档同步）
+- 「本地测试与质量检查」（列出必须通过的校验命令）
+
+完成编辑后，请运行本地校验并确保可以正常安装、卸载与清理。
+

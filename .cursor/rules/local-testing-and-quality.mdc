@@ -1,0 +1,31 @@
+---
+globs: Casks/*.rb
+description: 本地测试、安装验证与质量检查清单
+---
+
+## 本地测试与质量检查
+
+修改或新增 `Casks/*.rb` 后，至少执行：
+
+```bash
+# 语法检查（Ruby）
+ruby -c Casks/{app}.rb
+
+# Homebrew 审计与风格（如需）
+brew audit --cask Casks/{app}.rb
+brew style Casks/{app}.rb
+
+# 安装/卸载验证（在安全环境下执行）
+brew install --cask {tap-owner}/homebrew-cask/{app}
+brew uninstall --cask {app}
+```
+
+### 常见问题排查
+
+- 下载失败/403：考虑增加 `verified:` 或必要的 `user_agent:` 参数。
+- 多架构校验失败：确保 `arch` 与 `sha256 arm:/intel:` 一致匹配，且下载链接能正确插值。
+- `pkg` 安装留存：配置 `uninstall pkgutil:`，并在 `zap` 中清理残留。
+- 首启引导：如需通过 `postflight` 抑制首启引导，务必保持操作幂等且可忽略失败。
+
+更多上下文参见：[README.md](mdc:README.md)、[CONTRIBUTING.md](mdc:CONTRIBUTING.md)、示例 cask 文件（见「项目结构导航」）。
+

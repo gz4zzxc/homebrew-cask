@@ -1,0 +1,33 @@
+---
+globs: Casks/*.rb
+description: cask 命名（token）、文件名、名称与描述规范
+---
+
+## 命名与 token 规范
+
+### token 与文件名
+
+- token 使用小写 kebab-case，与文件名一致：`Casks/{token}.rb`
+- 常见示例：
+  - `aliyundrive`（单词合并）
+  - `futu-niuniu`（空格/中文名转连字符）
+  - `catalyst-browse`（官方名称多词转连字符）
+
+### `name` 与 `desc`
+
+- `name` 可包含多语言变体，建议包含英文与中文：
+  ```ruby
+  name "Eudic"
+  name "欧路词典"
+  ```
+- `desc` 简洁明确，避免营销性措辞。
+
+### `homepage` 与链接
+
+- `homepage` 指向上游官网或权威项目页。
+- 如下载链接非同域，务必提供 `verified:` 指定可信来源。
+
+### 结构顺序建议
+
+参见「Cask DSL 风格与约定」：[cask-dsl-style.mdc](mdc:.cursor/rules/cask-dsl-style.mdc)
+
