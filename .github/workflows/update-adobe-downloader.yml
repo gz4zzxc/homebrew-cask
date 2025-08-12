@@ -29,7 +29,7 @@ jobs:
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
           json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
-          TAG=$(printf "%s" "$json" | grep -Eo '"tag_name"\s*:\s*"[^"]+"' | head -n1 | sed -E 's/.*:\s*"(.*)"/\1/')
+          TAG=$(printf "%s" "$json" | sed -nE 's/.*"tag_name"\s*:\s*"([^"]+)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
             echo "未能解析最新 GitHub tag，跳过。"
@@ -44,7 +44,7 @@ jobs:
           fi
 
           URL="https://github.com/X1a0He/Adobe-Downloader/releases/download/${TAG}/Adobe.Downloader.dmg"
-          curl -fSL "$URL" -o /tmp/adobe-downloader.dmg
+          curl --retry 3 --retry-all-errors -fSL "$URL" -o /tmp/adobe-downloader.dmg
           SHA=$(shasum -a 256 /tmp/adobe-downloader.dmg | awk '{print $1}')
 
           echo "new_version=$TAG" >> "$GITHUB_OUTPUT"

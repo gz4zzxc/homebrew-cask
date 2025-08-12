@@ -28,8 +28,8 @@ jobs:
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
 
           feed=$(curl -fsSL "$FEED_URL")
-          SHORT=$(printf "%s" "$feed" | grep -Eo 'sparkle:shortVersionString="[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*="(.*)"/\1/')
-          BUILD=$(printf "%s" "$feed" | grep -Eo 'sparkle:version="[0-9]+"' | head -n1 | sed -E 's/.*="(.*)"/\1/')
+          SHORT=$(printf "%s" "$feed" | sed -nE 's/.*sparkle:shortVersionString="([^"]+)".*/\1/p' | head -n1)
+          BUILD=$(printf "%s" "$feed" | sed -nE 's/.*sparkle:version="([^"]+)".*/\1/p' | head -n1)
 
           if [[ -z "${SHORT:-}" || -z "${BUILD:-}" ]]; then
             echo "未能解析 Eudic 版本，跳过。"
