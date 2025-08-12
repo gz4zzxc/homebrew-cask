@@ -27,9 +27,9 @@ jobs:
 
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/aliyundrive.rb)
 
-          page=$(curl -fsSL -A "$UA" 'https://www.aliyundrive.com/download')
-          # 提取 aDrive-<version> 或 aDrive-v<version>
-          NEW_VERSION=$(printf "%s" "$page" | sed -nE 's/.*aDrive[._-]v?([0-9]+(\.[0-9]+)+).*/\1/p' | head -n1)
+          page=$(curl -fsSL -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
+          # 提取 aDrive-<version> 或 aDrive-v<version>（用 grep 避免 BSD sed 非 UTF-8 报错）
+          NEW_VERSION=$(printf "%s" "$page" | grep -aoE 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//')
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "未能解析最新版本，跳过。"
