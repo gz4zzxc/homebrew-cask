@@ -2,6 +2,115 @@ name: Update Aliyun Drive Cask
 
 on:
   schedule:
+    - cron: "12 23 * * *"  # 北京时间 07:12
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-aliyundrive
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/aliyundrive.rb)
+
+          page=$(curl -sSL -A "$UA" 'https://www.aliyundrive.com/download')
+          # 提取 aDrive-<version> 或 aDrive-v<version>
+          NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//')
+
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "未能解析最新版本，跳过。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "已是最新版本：$CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 下载多架构并计算 SHA256
+          INTEL_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}.dmg"
+          ARM_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}-arm64.dmg"
+
+          curl -fSL -A "$UA" "$INTEL_URL" -o /tmp/adrive-intel.dmg
+          curl -fSL -A "$UA" "$ARM_URL" -o /tmp/adrive-arm64.dmg
+
+          SHA_INTEL=$(shasum -a 256 /tmp/adrive-intel.dmg | awk '{print $1}')
+          SHA_ARM=$(shasum -a 256 /tmp/adrive-arm64.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_intel=$SHA_INTEL" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_arm=$SHA_ARM" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256_INTEL: ${{ steps.check.outputs.new_sha256_intel }}
+          NEW_SHA256_ARM: ${{ steps.check.outputs.new_sha256_arm }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/aliyundrive.rb)
+
+          # 更新 version
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
+
+          # 更新多架构 sha256（两行）
+          sed -i '' "s/^\s*sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/aliyundrive.rb
+          sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/aliyundrive.rb
+
+          # README 仅显示主版本
+          NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
+          sed -i '' "s/| \`aliyundrive\` | [^|]* |/| \`aliyundrive\` | $NEW_VERSION_DISPLAY |/" README.md
+
+          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/aliyundrive.rb
+          grep "\`aliyundrive\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/aliyundrive.rb README.md
+          git commit -m "chore: update Aliyun Drive to version ${NEW_VERSION}
+
+- Updated version from ${OLD_VERSION} to ${NEW_VERSION}
+- Updated SHA256 checksum (arm64/intel)
+- Updated README.md version table
+- Source: https://www.aliyundrive.com/download" || exit 0
+          git push
+
+name: Update Aliyun Drive Cask
+
+on:
+  schedule:
     # 每天北京时间上午 8 点检查更新（UTC 时间 0 点）
     - cron: '0 0 * * *'
   workflow_dispatch: # 允许手动触发

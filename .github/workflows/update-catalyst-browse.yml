@@ -1,3 +1,96 @@
+name: Update Catalyst Browse Cask
+
+on:
+  schedule:
+    - cron: "48 23 * * *"  # 北京时间 07:48
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-catalyst-browse
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE_URL="https://www.sony.com/electronics/support/articles/CCCT03000"
+          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
+
+          page=$(curl -fsSL "$PAGE_URL")
+          NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'Catalyst[[:space:]]+Browse[[:space:]]+[0-9]+(\.[0-9]+)*' | head -n1 | awk '{print $3}')
+
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "未能解析 Catalyst Browse 版本，跳过。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "已是最新版本：$CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          URL="https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg"
+          curl -fSL "$URL" -o /tmp/catalyst-browse.dmg
+          SHA=$(shasum -a 256 /tmp/catalyst-browse.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256: ${{ steps.check.outputs.new_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
+
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/catalyst-browse.rb
+          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/catalyst-browse.rb
+
+          sed -i '' "s/| \`catalyst-browse\` | [^|]* |/| \`catalyst-browse\` | $NEW_VERSION |/" README.md
+
+          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/catalyst-browse.rb
+          grep "\`catalyst-browse\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/catalyst-browse.rb README.md
+          git commit -m "chore: update Catalyst Browse to version ${NEW_VERSION}
+
+- Updated version from ${OLD_VERSION} to ${NEW_VERSION}
+- Updated SHA256 checksum
+- Updated README.md version table
+- Source: https://www.sony.com/electronics/support/articles/CCCT03000" || exit 0
+          git push
+
 name: Update Sony Catalyst Browse Cask
 
 on:

@@ -2,6 +2,103 @@ name: Update Futu Niuniu Cask
 
 on:
   schedule:
+    - cron: "54 23 * * *"  # 北京时间 07:54
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-futu-niuniu
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/futu-niuniu.rb)
+
+          # 解析下载页中的直链文件名获取版本
+          page=$(curl -fsSL 'https://www.futunn.com/download/mac') || page=""
+          if [[ -z "$page" ]]; then
+            page=$(curl -fsSL 'https://www.futunn.com/download') || true
+          fi
+
+          NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
+
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "未能解析 Futu 版本，跳过。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "已是最新版本：$CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          URL="https://softwaredownload.futunn.com/FTNN_desktop_${NEW_VERSION}_Website.dmg"
+          curl -fSL "$URL" -o /tmp/futu-niuniu.dmg
+          SHA=$(shasum -a 256 /tmp/futu-niuniu.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256: ${{ steps.check.outputs.new_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/futu-niuniu.rb)
+
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/futu-niuniu.rb
+          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/futu-niuniu.rb
+
+          sed -i '' "s/| \`futu-niuniu\` | [^|]* |/| \`futu-niuniu\` | $NEW_VERSION |/" README.md
+
+          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/futu-niuniu.rb
+          grep "\`futu-niuniu\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/futu-niuniu.rb README.md
+          git commit -m "chore: update Futu Niuniu to version ${NEW_VERSION}
+
+- Updated version from ${OLD_VERSION} to ${NEW_VERSION}
+- Updated SHA256 checksum
+- Updated README.md version table
+- Source: https://www.futunn.com/download/mac" || exit 0
+          git push
+
+name: Update Futu Niuniu Cask
+
+on:
+  schedule:
     # 每天北京时间上午 7 点检查更新（UTC 时间 23 点，即前一天 23:00）
     - cron: '0 23 * * *'
   workflow_dispatch: # 允许手动触发

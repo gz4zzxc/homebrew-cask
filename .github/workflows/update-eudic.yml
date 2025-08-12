@@ -2,6 +2,106 @@ name: Update Eudic Cask
 
 on:
   schedule:
+    - cron: "24 23 * * *"  # 北京时间 07:24
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-eudic
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          FEED_URL="https://static.eudic.net/pkg/eudic_mac.xml"
+
+          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
+
+          feed=$(curl -fsSL "$FEED_URL")
+          SHORT=$(printf "%s" "$feed" | grep -Eo 'sparkle:shortVersionString="[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*="(.*)"/\1/')
+          BUILD=$(printf "%s" "$feed" | grep -Eo 'sparkle:version="[0-9]+"' | head -n1 | sed -E 's/.*="(.*)"/\1/')
+
+          if [[ -z "${SHORT:-}" || -z "${BUILD:-}" ]]; then
+            echo "未能解析 Eudic 版本，跳过。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEW_VERSION="$SHORT,$BUILD"
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "已是最新版本：$CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          URL="https://static.eudic.net/pkg/eudicmac.dmg?v=${BUILD}"
+          curl -fSL "$URL" -o /tmp/eudic.dmg
+          SHA=$(shasum -a 256 /tmp/eudic.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "new_version_display=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256: ${{ steps.check.outputs.new_sha256 }}
+          NEW_VERSION_DISPLAY: ${{ steps.check.outputs.new_version_display }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
+
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/eudic.rb
+          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/eudic.rb
+
+          sed -i '' "s/| \`eudic\` | [^|]* |/| \`eudic\` | $NEW_VERSION_DISPLAY |/" README.md
+
+          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/eudic.rb
+          grep "\`eudic\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_VERSION_DISPLAY: ${{ steps.check.outputs.new_version_display }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/eudic.rb README.md
+          git commit -m "chore: update Eudic to version ${NEW_VERSION}
+
+- Updated version from ${OLD_VERSION} to ${NEW_VERSION}
+- Updated SHA256 checksum
+- Updated README.md version table (display ${NEW_VERSION_DISPLAY})
+- Source: https://static.eudic.net/pkg/eudic_mac.xml" || exit 0
+          git push
+
+name: Update Eudic Cask
+
+on:
+  schedule:
     # 每天北京时间上午 9 点检查更新（UTC 时间 1 点）
     - cron: '0 1 * * *'
   workflow_dispatch: # 允许手动触发

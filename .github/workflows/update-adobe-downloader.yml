@@ -2,6 +2,101 @@ name: Update Adobe Downloader Cask
 
 on:
   schedule:
+    - cron: "36 23 * * *"  # 北京时间 07:36
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-adobe-downloader
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest"
+          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
+
+          json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
+          TAG=$(printf "%s" "$json" | grep -Eo '"tag_name"\s*:\s*"[^"]+"' | head -n1 | sed -E 's/.*:\s*"(.*)"/\1/')
+
+          if [[ -z "${TAG:-}" ]]; then
+            echo "未能解析最新 GitHub tag，跳过。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
+            echo "已是最新版本：$CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          URL="https://github.com/X1a0He/Adobe-Downloader/releases/download/${TAG}/Adobe.Downloader.dmg"
+          curl -fSL "$URL" -o /tmp/adobe-downloader.dmg
+          SHA=$(shasum -a 256 /tmp/adobe-downloader.dmg | awk '{print $1}')
+
+          echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256: ${{ steps.check.outputs.new_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
+
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
+          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
+
+          sed -i '' "s/| \`adobe-downloader\` | [^|]* |/| \`adobe-downloader\` | $NEW_VERSION |/" README.md
+
+          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/adobe-downloader.rb
+          grep "\`adobe-downloader\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/adobe-downloader.rb README.md
+          git commit -m "chore: update Adobe Downloader to version ${NEW_VERSION}
+
+- Updated version from ${OLD_VERSION} to ${NEW_VERSION}
+- Updated SHA256 checksum
+- Updated README.md version table
+- Source: https://github.com/X1a0He/Adobe-Downloader/releases/latest" || exit 0
+          git push
+
+name: Update Adobe Downloader Cask
+
+on:
+  schedule:
     # 每天北京时间 07:12、13:27、19:42 检查更新（UTC 时间 23:12、05:27、11:42）
     - cron: "12 23 * * *"
     - cron: "27 5 * * *"
