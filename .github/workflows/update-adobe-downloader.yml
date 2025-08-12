@@ -2,8 +2,10 @@ name: Update Adobe Downloader Cask
 
 on:
   schedule:
-    # 每天北京时间上午 8 点检查更新（UTC 时间 0 点）
-    - cron: '0 0 * * *'
+    # 每天北京时间 07:12、13:27、19:42 检查更新（UTC 时间 23:12、05:27、11:42）
+    - cron: "12 23 * * *"
+    - cron: "27 5 * * *"
+    - cron: "42 11 * * *"
   workflow_dispatch: # 允许手动触发
   push:
     branches:
@@ -14,6 +16,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: update-adobe-downloader
+  cancel-in-progress: true
 
 jobs:
   update:
