@@ -1,6 +1,6 @@
 name: Update Futu Niuniu Cask
 
-on:
+'on':
   schedule:
     - cron: "54 23 * * *"  # 北京时间 07:54
   workflow_dispatch: {}

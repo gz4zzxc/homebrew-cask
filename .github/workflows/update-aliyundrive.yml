@@ -1,6 +1,6 @@
 name: Update Aliyun Drive Cask
 
-on:
+'on':
   schedule:
     - cron: "12 23 * * *"  # 北京时间 07:12
   workflow_dispatch: {}

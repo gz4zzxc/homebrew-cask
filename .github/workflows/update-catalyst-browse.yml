@@ -1,6 +1,6 @@
 name: Update Catalyst Browse Cask
 
-on:
+'on':
   schedule:
     - cron: "48 23 * * *"  # 北京时间 07:48
   workflow_dispatch: {}

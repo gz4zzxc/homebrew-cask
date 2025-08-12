@@ -1,6 +1,6 @@
 name: Update Adobe Downloader Cask
 
-on:
+'on':
   schedule:
     - cron: "36 23 * * *"  # 北京时间 07:36
   workflow_dispatch: {}
