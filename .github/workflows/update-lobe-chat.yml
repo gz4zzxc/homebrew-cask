@@ -1,0 +1,107 @@
+name: Update Lobe Chat Cask
+
+on:
+  schedule:
+    - cron: "12 23 * * *"  # 北京时间 07:12 每日检查
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-lobe-chat-manual
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -xeuo pipefail
+          REPO="lobehub/lobe-chat"
+          UA="gh-actions-lobe-chat-updater/${GITHUB_RUN_ID}"
+          api() { curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 15 -fsSL \
+                     -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" -A "$UA" "$1"; }
+          TAG=$(api "https://api.github.com/repos/${REPO}/releases/latest" | jq -r .tag_name)
+          if [[ -z "${TAG:-}" || "${TAG}" == "null" ]]; then
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          NEW_VERSION=${TAG#v}
+
+          CURRENT_VERSION=""
+          if [[ -f Casks/lobe-chat.rb ]]; then
+            CURRENT_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/lobe-chat.rb | head -n1 || true)
+          fi
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ARM_URL="https://github.com/${REPO}/releases/download/${TAG}/LobeHub-Beta-${NEW_VERSION}-arm64.dmg"
+          INTEL_URL="https://github.com/${REPO}/releases/download/${TAG}/LobeHub-Beta-${NEW_VERSION}-x64.dmg"
+
+          # 预检 HEAD
+          curl -IfSL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" "$ARM_URL" | sed -n '1,20p' || true
+          curl -IfSL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" "$INTEL_URL" | sed -n '1,20p' || true
+
+          # 下载
+          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-arm.dmg "$ARM_URL"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-intel.dmg "$INTEL_URL"
+
+          ARM_SHA=$(shasum -a 256 /tmp/lc-arm.dmg | awk '{print $1}')
+          INTEL_SHA=$(shasum -a 256 /tmp/lc-intel.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Apply updates
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+          NEW_SHA256_ARM: ${{ steps.check.outputs.new_sha256_arm }}
+          NEW_SHA256_INTEL: ${{ steps.check.outputs.new_sha256_intel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/lobe-chat.rb || true)
+          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/lobe-chat.rb
+          sed -i '' "s/^\s*sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/lobe-chat.rb
+          sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/lobe-chat.rb
+
+          NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
+          if grep -qE "\\| \\\`lobe-chat\\\` \\|" README.md; then
+            sed -i '' -E "s@^\\|.*\\| \\\`lobe-chat\\\` \\|.*$@| 🤖 Lobe Chat | \\\`lobe-chat\\\` | ${NEW_VERSION_DISPLAY} | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |@" README.md
+          fi
+
+      - name: Validate
+        if: steps.check.outputs.update_needed == 'true'
+        shell: bash
+        run: |
+          ruby -c Casks/lobe-chat.rb
+          grep "\`lobe-chat\`" README.md | cat
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.check.outputs.new_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/lobe-chat.rb README.md
+          git commit -m "chore: update Lobe Chat to version ${NEW_VERSION}" -m "- Updated version and checksums" -m "- Source: https://github.com/lobehub/lobe-chat/releases/tag/v${NEW_VERSION}" || exit 0
+          git push
+
+
