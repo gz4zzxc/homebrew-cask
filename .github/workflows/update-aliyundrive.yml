@@ -53,10 +53,20 @@ jobs:
           INTEL_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}.dmg"
           ARM_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}-arm64.dmg"
 
-          curl --retry 3 --retry-all-errors --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg
-          curl --retry 3 --retry-all-errors --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg
-          test -s /tmp/adrive-intel.dmg
-          test -s /tmp/adrive-arm64.dmg
+          # 尝试下载（软失败）：若下载失败则退出本步骤但不让作业失败
+          set +e
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg
+          INTEL_RC=$?
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg
+          ARM_RC=$?
+          set -e
+
+          if [[ $INTEL_RC -ne 0 || $ARM_RC -ne 0 || ! -s /tmp/adrive-intel.dmg || ! -s /tmp/adrive-arm64.dmg ]]; then
+            echo "下载失败或文件为空，暂不更新。"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            echo "download_ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           SHA_INTEL=$(shasum -a 256 /tmp/adrive-intel.dmg | awk '{print $1}')
           SHA_ARM=$(shasum -a 256 /tmp/adrive-arm64.dmg | awk '{print $1}')
@@ -67,7 +77,7 @@ jobs:
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
 
       - name: Apply updates
-        if: steps.check.outputs.update_needed == 'true'
+        if: steps.check.outputs.update_needed == 'true' && steps.check.outputs.download_ok != 'false'
         env:
           NEW_VERSION: ${{ steps.check.outputs.new_version }}
           NEW_SHA256_INTEL: ${{ steps.check.outputs.new_sha256_intel }}
