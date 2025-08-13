@@ -22,13 +22,13 @@ jobs:
         id: check
         shell: bash
         run: |
-          set -euo pipefail
+          set -xeuo pipefail
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
           CURRENT_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
 
           page=$(curl -fsSL -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
-          NEW_VERSION=$(printf "%s" "$page" | grep -aoE 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//')
+          NEW_VERSION=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//')
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "未能解析最新版本，跳过。"
@@ -47,6 +47,8 @@ jobs:
 
           curl --retry 3 --retry-all-errors -fSL -A "$UA" "$INTEL_URL" -o /tmp/adrive-intel.dmg
           curl --retry 3 --retry-all-errors -fSL -A "$UA" "$ARM_URL" -o /tmp/adrive-arm64.dmg
+          test -s /tmp/adrive-intel.dmg
+          test -s /tmp/adrive-arm64.dmg
 
           SHA_INTEL=$(shasum -a 256 /tmp/adrive-intel.dmg | awk '{print $1}')
           SHA_ARM=$(shasum -a 256 /tmp/adrive-arm64.dmg | awk '{print $1}')
