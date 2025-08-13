@@ -25,7 +25,7 @@ jobs:
           set -xeuo pipefail
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-          CURRENT_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
+          CURRENT_VERSION=$(LC_ALL=C sed -n 's/^[[:space:]]*version "\([^" ]*\)"/\1/p' Casks/aliyundrive.rb)
 
           page=$(curl -fsSL --compressed -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
           set +o pipefail
@@ -53,8 +53,8 @@ jobs:
           INTEL_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}.dmg"
           ARM_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}-arm64.dmg"
 
-          curl --retry 3 --retry-all-errors -fSL -A "$UA" "$INTEL_URL" -o /tmp/adrive-intel.dmg
-          curl --retry 3 --retry-all-errors -fSL -A "$UA" "$ARM_URL" -o /tmp/adrive-arm64.dmg
+          curl --retry 3 --retry-all-errors --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg
+          curl --retry 3 --retry-all-errors --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg
           test -s /tmp/adrive-intel.dmg
           test -s /tmp/adrive-arm64.dmg
 
