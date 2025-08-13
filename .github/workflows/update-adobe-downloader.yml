@@ -29,7 +29,7 @@ jobs:
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
           json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
-          TAG=$(printf "%s" "$json" | sed -nE 's/.*"tag_name"\s*:\s*"([^"]+)".*/\1/p' | head -n1)
+          TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
             echo "未能解析最新 GitHub tag，跳过。"
