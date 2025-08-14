@@ -37,24 +37,15 @@ jobs:
           fi
           echo "::endgroup::"
 
-      # 缓存策略优化
-      - name: Restore Homebrew cache
-        uses: actions/cache/restore@v4
-        id: homebrew-cache
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /opt/homebrew/Caches/Homebrew
-          key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Brewfile.lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-homebrew-
-
+      # 优化的下载缓存策略
+      # 只缓存下载的 DMG 文件，避免重复下载相同版本
+      # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
       - name: Restore download cache
         uses: actions/cache/restore@v4
         id: download-cache
         with:
           path: /tmp/*.dmg
-          key: ${{ runner.os }}-lobe-chat-downloads
+          key: ${{ runner.os }}-lobe-chat-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-lobe-chat-
 
@@ -157,7 +148,10 @@ jobs:
 
       # 保存下载缓存
       - name: Save download cache
-        if: always() && steps.download-cache.outputs.cache-hit != 'true'
+        if: |
+          always() && 
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
         with:
           path: /tmp/*.dmg
