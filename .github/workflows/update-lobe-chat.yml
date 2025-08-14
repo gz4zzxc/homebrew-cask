@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: read      # 读取其他 workflow 状态
 
 concurrency:
   group: update-lobe-chat-manual
@@ -16,12 +17,50 @@ jobs:
   update:
     runs-on: macos-latest
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
+      # 检查是否有其他更新正在进行
+      - name: Check for running updates
+        id: check-running
+        run: |
+          echo "::group::Checking for running updates"
+          RUNNING_COUNT=$(gh run list --workflow="Update Lobe Chat Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
+          echo "Found $RUNNING_COUNT running updates"
+          
+          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
+            echo "::warning::Multiple updates are running, this might cause conflicts"
+            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "::endgroup::"
+
+      # 缓存策略优化
+      - name: Restore Homebrew cache
+        uses: actions/cache/restore@v4
+        id: homebrew-cache
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/Caches/Homebrew
+          key: ${{ runner.os }}-homebrew-${{ hashFiles('**/Brewfile.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-homebrew-
+
+      - name: Restore download cache
+        uses: actions/cache/restore@v4
+        id: download-cache
+        with:
+          path: /tmp/*.dmg
+          key: ${{ runner.os }}-lobe-chat-downloads
+          restore-keys: |
+            ${{ runner.os }}-lobe-chat-
+
       - name: Check new version
         id: check
+        continue-on-error: true  # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -xeuo pipefail
@@ -53,9 +92,33 @@ jobs:
           curl -IfSL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" "$ARM_URL" | sed -n '1,20p' || true
           curl -IfSL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" "$INTEL_URL" | sed -n '1,20p' || true
 
-          # 下载
-          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-arm.dmg "$ARM_URL"
-          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-intel.dmg "$INTEL_URL"
+          # 并行下载以提高性能
+          echo "::group::Downloading files in parallel"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-arm.dmg "$ARM_URL" &
+          ARM_PID=$!
+          curl -fL --retry 5 --retry-all-errors --retry-delay 2 -A "$UA" -o /tmp/lc-intel.dmg "$INTEL_URL" &
+          INTEL_PID=$!
+          
+          # 等待所有下载完成
+          wait $ARM_PID $INTEL_PID
+          echo "::endgroup::"
+          
+          # 验证下载的文件
+          if [[ ! -f /tmp/lc-arm.dmg ]] || [[ ! -f /tmp/lc-intel.dmg ]]; then
+            echo "::error::Download failed - files not found"
+            exit 1
+          fi
+          
+          # 检查文件大小
+          ARM_SIZE=$(stat -f%z /tmp/lc-arm.dmg 2>/dev/null || stat -c%s /tmp/lc-arm.dmg 2>/dev/null || echo "0")
+          INTEL_SIZE=$(stat -f%z /tmp/lc-intel.dmg 2>/dev/null || stat -c%s /tmp/lc-intel.dmg 2>/dev/null || echo "0")
+          
+          if [[ "$ARM_SIZE" -lt 1000000 ]] || [[ "$INTEL_SIZE" -lt 1000000 ]]; then
+            echo "::error::Downloaded files are too small - possible corruption"
+            exit 1
+          fi
+          
+          echo "::notice::Files downloaded successfully - ARM: ${ARM_SIZE} bytes, Intel: ${INTEL_SIZE} bytes"
 
           ARM_SHA=$(shasum -a 256 /tmp/lc-arm.dmg | awk '{print $1}')
           INTEL_SHA=$(shasum -a 256 /tmp/lc-intel.dmg | awk '{print $1}')
@@ -64,9 +127,48 @@ jobs:
           echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
           echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      # 验证检查步骤的输出
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+          
+          if [[ ! "${{ steps.check.outputs.new_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::error::Invalid version format: ${{ steps.check.outputs.new_version }}"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256_arm }}" ]]; then
+            echo "::error::ARM SHA256 is empty"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256_intel }}" ]]; then
+            echo "::error::Intel SHA256 is empty"
+            exit 1
+          fi
+          
+          echo "::notice::All outputs validated successfully"
+
+      # 保存下载缓存
+      - name: Save download cache
+        if: always() && steps.download-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Apply updates
-        if: steps.check.outputs.update_needed == 'true'
+        if: |
+          steps.check.outputs.update_needed == 'true' &&
+          steps.check.outputs.new_version != '' &&
+          steps.check.outputs.new_sha256_arm != '' &&
+          steps.check.outputs.new_sha256_intel != ''
         env:
           NEW_VERSION: ${{ steps.check.outputs.new_version }}
           NEW_SHA256_ARM: ${{ steps.check.outputs.new_sha256_arm }}
@@ -75,6 +177,15 @@ jobs:
         run: |
           set -euo pipefail
           OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/lobe-chat.rb || true)
+          
+          # 记录更新摘要
+          echo "::group::Update Summary"
+          echo "Cask: lobe-chat"
+          echo "Old Version: $OLD_VERSION"
+          echo "New Version: $NEW_VERSION"
+          echo "ARM SHA256: $NEW_SHA256_ARM"
+          echo "Intel SHA256: $NEW_SHA256_INTEL"
+          echo "::endgroup::"
           
           # 使用更精确的匹配模式更新 cask 文件
           sed -i '' "s/^  version \"${OLD_VERSION}\"/  version \"$NEW_VERSION\"/" Casks/lobe-chat.rb
@@ -99,6 +210,9 @@ jobs:
             { print }
             ' README.md > README.md.tmp && mv README.md.tmp README.md
           fi
+          
+          echo "::notice::Cask file updated successfully"
+          echo "::notice::README.md updated successfully"
 
       - name: Validate
         if: steps.check.outputs.update_needed == 'true'
@@ -119,5 +233,33 @@ jobs:
           git add Casks/lobe-chat.rb README.md
           git commit -m "chore: update Lobe Chat to version ${NEW_VERSION}" -m "- Updated version and checksums" -m "- Source: https://github.com/lobehub/lobe-chat/releases/tag/v${NEW_VERSION}" || exit 0
           git push
+
+      # 最终状态报告
+      - name: Final status report
+        if: always()
+        run: |
+          echo "::group::Final Status Report"
+          echo "Workflow: Update Lobe Chat Cask"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "Status: ${{ job.status }}"
+          
+          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
+            echo "Update: Required and processed"
+            echo "Old Version: ${{ steps.check.outputs.old_version }}"
+            echo "New Version: ${{ steps.check.outputs.new_version }}"
+          else
+            echo "Update: Not required or failed"
+          fi
+          
+          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
+            echo "Conflict: Multiple updates detected"
+          fi
+          
+          echo "::endgroup::"
+          
+          # 清理临时文件
+          rm -f /tmp/lc-*.dmg
+          echo "::notice::Temporary files cleaned up"
 
 
