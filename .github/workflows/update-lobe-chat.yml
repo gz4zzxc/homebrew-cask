@@ -80,8 +80,18 @@ jobs:
           sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/lobe-chat.rb
 
           NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
-          if grep -qE "\\| \\\`lobe-chat\\\` \\|" README.md; then
-            sed -i '' -E "s@^\\|.*\\| \\\`lobe-chat\\\` \\|.*$@| 🤖 Lobe Chat | \\\`lobe-chat\\\` | ${NEW_VERSION_DISPLAY} | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |@" README.md
+          # 使用更简单的 sed 命令更新 README.md，避免复杂的转义字符
+          if grep -q "lobe-chat" README.md; then
+            # 先备份原文件
+            cp README.md README.md.bak
+            # 使用 awk 进行更安全的替换
+            awk -v version="$NEW_VERSION_DISPLAY" '
+            /lobe-chat/ && /ARM64 \+ Intel/ {
+              print "| 🤖 Lobe Chat | `lobe-chat` | " version " | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |"
+              next
+            }
+            { print }
+            ' README.md > README.md.tmp && mv README.md.tmp README.md
           fi
 
       - name: Validate
@@ -89,7 +99,7 @@ jobs:
         shell: bash
         run: |
           ruby -c Casks/lobe-chat.rb
-          grep "\`lobe-chat\`" README.md | cat
+          grep "lobe-chat" README.md | cat
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
