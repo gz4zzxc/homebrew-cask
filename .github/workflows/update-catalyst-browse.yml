@@ -1,12 +1,13 @@
 name: Update Catalyst Browse Cask
 
-'on':
+on:
   schedule:
     - cron: "48 23 * * *"  # 北京时间 07:48
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  actions: read      # 读取其他 workflow 状态
 
 concurrency:
   group: update-catalyst-browse
@@ -18,36 +19,123 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 检查是否有其他更新正在进行
+      - name: Check for running updates
+        id: check-running
+        run: |
+          echo "::group::Checking for running updates"
+          RUNNING_COUNT=$(gh run list --workflow="Update Catalyst Browse Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
+          echo "Found $RUNNING_COUNT running updates"
+          
+          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
+            echo "::warning::Multiple updates are running, this might cause conflicts"
+            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "::endgroup::"
+
+      # 优化的下载缓存策略
+      # 只缓存下载的 DMG 文件，避免重复下载相同版本
+      # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
+      - name: Restore download cache
+        uses: actions/cache/restore@v4
+        id: download-cache
+        with:
+          path: /tmp/*.dmg
+          key: ${{ runner.os }}-catalyst-browse-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-catalyst-browse-
+
       - name: Check new version
         id: check
+        continue-on-error: true  # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -euo pipefail
           PAGE_URL="https://www.sony.com/electronics/support/articles/CCCT03000"
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
+
           page=$(curl -fsSL "$PAGE_URL")
           NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'Catalyst[[:space:]]+Browse[[:space:]]+[0-9]+(\.[0-9]+)*' | head -n1 | awk '{print $3}')
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "未能解析 Catalyst Browse 版本，跳过。"
+            echo "::warning::Failed to parse Catalyst Browse version, skipping."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          echo "Latest version: $NEW_VERSION"
 
           if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-            echo "已是最新版本：$CURRENT_VERSION"
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          echo "::notice::New version available: $NEW_VERSION"
+          echo "::endgroup::"
+
           URL="https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg"
-          curl -fSL "$URL" -o /tmp/catalyst-browse.dmg
+          
+          echo "::group::Downloading file"
+          echo "Downloading from: $URL"
+          
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/catalyst-browse.dmg
+          
+          # 验证下载的文件
+          if [[ ! -f /tmp/catalyst-browse.dmg ]]; then
+            echo "::error::Download failed - file not found"
+            exit 1
+          fi
+          
+          # 检查文件大小
+          FILE_SIZE=$(stat -f%z /tmp/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/catalyst-browse.dmg 2>/dev/null || echo "0")
+          
+          if [[ "$FILE_SIZE" -lt 1000000 ]]; then
+            echo "::error::Downloaded file is too small - possible corruption"
+            exit 1
+          fi
+          
+          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
+          echo "::endgroup::"
+
           SHA=$(shasum -a 256 /tmp/catalyst-browse.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      # 验证检查步骤的输出
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
+            echo "::error::SHA256 is empty"
+            exit 1
+          fi
+          
+          echo "::notice::All outputs validated successfully"
+
+      # 保存下载缓存
+      - name: Save download cache
+        if: |
+          always() && 
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Apply updates
         if: steps.check.outputs.update_needed == 'true'
@@ -59,12 +147,21 @@ jobs:
           set -euo pipefail
           OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
+          # 记录更新摘要
+          echo "::group::Update Summary"
+          echo "Cask: catalyst-browse"
+          echo "Old Version: $OLD_VERSION"
+          echo "New Version: $NEW_VERSION"
+          echo "SHA256: $NEW_SHA256"
+          echo "::endgroup::"
+
           sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/catalyst-browse.rb
           sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/catalyst-browse.rb
 
           sed -i '' "s/| \`catalyst-browse\` | [^|]* |/| \`catalyst-browse\` | $NEW_VERSION |/" README.md
 
-          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+          echo "::notice::Cask file updated successfully"
+          echo "::notice::README.md updated successfully"
 
       - name: Validate
         if: steps.check.outputs.update_needed == 'true'
@@ -90,3 +187,31 @@ jobs:
             -m "- Updated README.md version table" \
             -m "- Source: https://www.sony.com/electronics/support/articles/CCCT03000" || exit 0
           git push
+
+      # 最终状态报告
+      - name: Final status report
+        if: always()
+        run: |
+          echo "::group::Final Status Report"
+          echo "Workflow: Update Catalyst Browse Cask"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "Status: ${{ job.status }}"
+          
+          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
+            echo "Update: Required and processed"
+            echo "Old Version: ${{ steps.check.outputs.old_version }}"
+            echo "New Version: ${{ steps.check.outputs.new_version }}"
+          else
+            echo "Update: Not required or failed"
+          fi
+          
+          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
+            echo "Conflict: Multiple updates detected"
+          fi
+          
+          echo "::endgroup::"
+          
+          # 清理临时文件
+          rm -f /tmp/*.dmg
+          echo "::notice::Temporary files cleaned up"

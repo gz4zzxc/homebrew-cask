@@ -1,12 +1,13 @@
 name: Update Adobe Downloader Cask
 
-'on':
+on:
   schedule:
     - cron: "36 23 * * *"  # 北京时间 07:36
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  actions: read      # 读取其他 workflow 状态
 
 concurrency:
   group: update-adobe-downloader
@@ -15,41 +16,129 @@ concurrency:
 jobs:
   update:
     runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
+      # 检查是否有其他更新正在进行
+      - name: Check for running updates
+        id: check-running
+        run: |
+          echo "::group::Checking for running updates"
+          RUNNING_COUNT=$(gh run list --workflow="Update Adobe Downloader Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
+          echo "Found $RUNNING_COUNT running updates"
+          
+          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
+            echo "::warning::Multiple updates are running, this might cause conflicts"
+            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "::endgroup::"
+
+      # 优化的下载缓存策略
+      # 只缓存下载的 DMG 文件，避免重复下载相同版本
+      # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
+      - name: Restore download cache
+        uses: actions/cache/restore@v4
+        id: download-cache
+        with:
+          path: /tmp/*.dmg
+          key: ${{ runner.os }}-adobe-downloader-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-adobe-downloader-
+
       - name: Check new version
         id: check
+        continue-on-error: true  # 允许失败但不终止整个工作流
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           API="https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest"
           CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
+          
           json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
           TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
-            echo "未能解析最新 GitHub tag，跳过。"
+            echo "::warning::Failed to parse latest GitHub tag, skipping."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          echo "Latest tag: $TAG"
 
           if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
-            echo "已是最新版本：$CURRENT_VERSION"
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          echo "::notice::New version available: $TAG"
+          echo "::endgroup::"
+
           URL="https://github.com/X1a0He/Adobe-Downloader/releases/download/${TAG}/Adobe.Downloader.dmg"
-          curl --retry 3 --retry-all-errors -fSL "$URL" -o /tmp/adobe-downloader.dmg
+          
+          echo "::group::Downloading file"
+          echo "Downloading from: $URL"
+          
+          # 并行下载以提高性能
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/adobe-downloader.dmg
+          
+          # 验证下载的文件
+          if [[ ! -f /tmp/adobe-downloader.dmg ]]; then
+            echo "::error::Download failed - file not found"
+            exit 1
+          fi
+          
+          # 检查文件大小
+          FILE_SIZE=$(stat -f%z /tmp/adobe-downloader.dmg 2>/dev/null || stat -c%s /tmp/adobe-downloader.dmg 2>/dev/null || echo "0")
+          
+          if [[ "$FILE_SIZE" -lt 1000000 ]]; then
+            echo "::error::Downloaded file is too small - possible corruption"
+            exit 1
+          fi
+          
+          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
+          echo "::endgroup::"
+
           SHA=$(shasum -a 256 /tmp/adobe-downloader.dmg | awk '{print $1}')
 
           echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      # 验证检查步骤的输出
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
+            echo "::error::SHA256 is empty"
+            exit 1
+          fi
+          
+          echo "::notice::All outputs validated successfully"
+
+      # 保存下载缓存
+      - name: Save download cache
+        if: |
+          always() && 
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Apply updates
         if: steps.check.outputs.update_needed == 'true'
@@ -61,12 +150,21 @@ jobs:
           set -euo pipefail
           OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
+          # 记录更新摘要
+          echo "::group::Update Summary"
+          echo "Cask: adobe-downloader"
+          echo "Old Version: $OLD_VERSION"
+          echo "New Version: $NEW_VERSION"
+          echo "SHA256: $NEW_SHA256"
+          echo "::endgroup::"
+
           sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
           sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
 
           sed -i '' "s/| \`adobe-downloader\` | [^|]* |/| \`adobe-downloader\` | $NEW_VERSION |/" README.md
 
-          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+          echo "::notice::Cask file updated successfully"
+          echo "::notice::README.md updated successfully"
 
       - name: Validate
         if: steps.check.outputs.update_needed == 'true'
@@ -92,3 +190,31 @@ jobs:
             -m "- Updated README.md version table" \
             -m "- Source: https://github.com/X1a0He/Adobe-Downloader/releases/latest" || exit 0
           git push
+
+      # 最终状态报告
+      - name: Final status report
+        if: always()
+        run: |
+          echo "::group::Final Status Report"
+          echo "Workflow: Update Adobe Downloader Cask"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "Status: ${{ job.status }}"
+          
+          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
+            echo "Update: Required and processed"
+            echo "Old Version: ${{ steps.check.outputs.old_version }}"
+            echo "New Version: ${{ steps.check.outputs.new_version }}"
+          else
+            echo "Update: Not required or failed"
+          fi
+          
+          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
+            echo "Conflict: Multiple updates detected"
+          fi
+          
+          echo "::endgroup::"
+          
+          # 清理临时文件
+          rm -f /tmp/*.dmg
+          echo "::notice::Temporary files cleaned up"

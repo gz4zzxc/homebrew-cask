@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: read      # 读取其他 workflow 状态
 
 concurrency:
   group: update-aliyundrive
@@ -18,14 +19,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 检查是否有其他更新正在进行
+      - name: Check for running updates
+        id: check-running
+        run: |
+          echo "::group::Checking for running updates"
+          RUNNING_COUNT=$(gh run list --workflow="Update Aliyun Drive Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
+          echo "Found $RUNNING_COUNT running updates"
+          
+          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
+            echo "::warning::Multiple updates are running, this might cause conflicts"
+            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "::endgroup::"
+
+      # 优化的下载缓存策略
+      # 只缓存下载的 DMG 文件，避免重复下载相同版本
+      # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
+      - name: Restore download cache
+        uses: actions/cache/restore@v4
+        id: download-cache
+        with:
+          path: /tmp/*.dmg
+          key: ${{ runner.os }}-aliyundrive-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-aliyundrive-
+
       - name: Check new version
         id: check
+        continue-on-error: true  # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -xeuo pipefail
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
           CURRENT_VERSION=$(LC_ALL=C sed -n 's/^[[:space:]]*version "\([^" ]*\)"/\1/p' Casks/aliyundrive.rb)
+
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
 
           page=$(curl -fsSL --compressed -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
           set +o pipefail
@@ -39,34 +72,55 @@ jobs:
           set -o pipefail
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "未能解析最新版本，跳过。"
+            echo "::warning::Failed to parse latest version, skipping."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          echo "Latest version: $NEW_VERSION"
+
           if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-            echo "已是最新版本：$CURRENT_VERSION"
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          echo "::notice::New version available: $NEW_VERSION"
+          echo "::endgroup::"
 
           INTEL_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}.dmg"
           ARM_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${NEW_VERSION}-arm64.dmg"
 
-          # 尝试下载（软失败）：若下载失败则退出本步骤但不让作业失败
-          set +e
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg
-          INTEL_RC=$?
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg
-          ARM_RC=$?
-          set -e
+          echo "::group::Downloading files in parallel"
+          echo "Intel URL: $INTEL_URL"
+          echo "ARM URL: $ARM_URL"
 
-          if [[ $INTEL_RC -ne 0 || $ARM_RC -ne 0 || ! -s /tmp/adrive-intel.dmg || ! -s /tmp/adrive-arm64.dmg ]]; then
-            echo "下载失败或文件为空，暂不更新。"
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            echo "download_ok=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          # 并行下载以提高性能
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg &
+          INTEL_PID=$!
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg &
+          ARM_PID=$!
+          
+          # 等待所有下载完成
+          wait $INTEL_PID $ARM_PID
+          
+          # 验证下载的文件
+          if [[ ! -f /tmp/adrive-intel.dmg ]] || [[ ! -f /tmp/adrive-arm64.dmg ]]; then
+            echo "::error::Download failed - files not found"
+            exit 1
           fi
+          
+          # 检查文件大小
+          INTEL_SIZE=$(stat -f%z /tmp/adrive-intel.dmg 2>/dev/null || stat -c%s /tmp/adrive-intel.dmg 2>/dev/null || echo "0")
+          ARM_SIZE=$(stat -f%z /tmp/adrive-arm64.dmg 2>/dev/null || stat -c%s /tmp/adrive-arm64.dmg 2>/dev/null || echo "0")
+          
+          if [[ "$INTEL_SIZE" -lt 1000000 ]] || [[ "$ARM_SIZE" -lt 1000000 ]]; then
+            echo "::error::Downloaded files are too small - possible corruption"
+            exit 1
+          fi
+          
+          echo "::notice::Files downloaded successfully - Intel: ${INTEL_SIZE} bytes, ARM: ${ARM_SIZE} bytes"
+          echo "::endgroup::"
 
           SHA_INTEL=$(shasum -a 256 /tmp/adrive-intel.dmg | awk '{print $1}')
           SHA_ARM=$(shasum -a 256 /tmp/adrive-arm64.dmg | awk '{print $1}')
@@ -75,6 +129,39 @@ jobs:
           echo "new_sha256_intel=$SHA_INTEL" >> "$GITHUB_OUTPUT"
           echo "new_sha256_arm=$SHA_ARM" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      # 验证检查步骤的输出
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256_intel }}" ]]; then
+            echo "::error::Intel SHA256 is empty"
+            exit 1
+          fi
+          
+          if [[ -z "${{ steps.check.outputs.new_sha256_arm }}" ]]; then
+            echo "::error::ARM SHA256 is empty"
+            exit 1
+          fi
+          
+          echo "::notice::All outputs validated successfully"
+
+      # 保存下载缓存
+      - name: Save download cache
+        if: |
+          always() && 
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Apply updates
         if: steps.check.outputs.update_needed == 'true' && steps.check.outputs.download_ok != 'false'
@@ -87,6 +174,15 @@ jobs:
           set -euo pipefail
           OLD_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
 
+          # 记录更新摘要
+          echo "::group::Update Summary"
+          echo "Cask: aliyundrive"
+          echo "Old Version: $OLD_VERSION"
+          echo "New Version: $NEW_VERSION"
+          echo "Intel SHA256: $NEW_SHA256_INTEL"
+          echo "ARM SHA256: $NEW_SHA256_ARM"
+          echo "::endgroup::"
+
           sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
           sed -i '' "s/^\s*sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/aliyundrive.rb
           sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/aliyundrive.rb
@@ -94,7 +190,8 @@ jobs:
           NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
           sed -i '' "s/| \`aliyundrive\` | [^|]* |/| \`aliyundrive\` | $NEW_VERSION_DISPLAY |/" README.md
 
-          echo "OLD_VERSION=$OLD_VERSION" >> $GITHUB_ENV
+          echo "::notice::Cask file updated successfully"
+          echo "::notice::README.md updated successfully"
 
       - name: Validate
         if: steps.check.outputs.update_needed == 'true'
@@ -120,3 +217,31 @@ jobs:
             -m "- Updated README.md version table" \
             -m "- Source: https://www.aliyundrive.com/download" || exit 0
           git push
+
+      # 最终状态报告
+      - name: Final status report
+        if: always()
+        run: |
+          echo "::group::Final Status Report"
+          echo "Workflow: Update Aliyun Drive Cask"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Attempt: ${{ github.run_attempt }}"
+          echo "Status: ${{ job.status }}"
+          
+          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
+            echo "Update: Required and processed"
+            echo "Old Version: ${{ steps.check.outputs.old_version }}"
+            echo "New Version: ${{ steps.check.outputs.new_version }}"
+          else
+            echo "Update: Not required or failed"
+          fi
+          
+          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
+            echo "Conflict: Multiple updates detected"
+          fi
+          
+          echo "::endgroup::"
+          
+          # 清理临时文件
+          rm -f /tmp/*.dmg
+          echo "::notice::Temporary files cleaned up"
