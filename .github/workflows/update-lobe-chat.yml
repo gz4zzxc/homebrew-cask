@@ -74,10 +74,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/lobe-chat.rb || true)
-          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/lobe-chat.rb
-          sed -i '' "s/^\s*sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/lobe-chat.rb
-          sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/lobe-chat.rb
+          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/lobe-chat.rb || true)
+          
+          # 使用更精确的匹配模式更新 cask 文件
+          sed -i '' "s/^  version \"${OLD_VERSION}\"/  version \"$NEW_VERSION\"/" Casks/lobe-chat.rb
+          
+          # 更新 ARM SHA256（匹配整行）
+          sed -i '' "s/^  sha256 arm:   \".*\"/  sha256 arm:   \"$NEW_SHA256_ARM\"/" Casks/lobe-chat.rb
+          
+          # 更新 Intel SHA256（匹配整行）
+          sed -i '' "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/lobe-chat.rb
 
           NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
           # 使用更简单的 sed 命令更新 README.md，避免复杂的转义字符
