@@ -59,7 +59,7 @@ brew upgrade --cask aliyundrive
 | 📚 欧路词典 | `eudic` | 25.7.1 | Universal | ✅ | [官网](https://www.eudic.net/) |
 | 🎨 Adobe Downloader | `adobe-downloader` | 2.1.2 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
-| 🤖 Lobe Chat | `lobe-chat` | 1.111.12 | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |
+| 🤖 Lobe Chat | `lobe-chat` | 1.112.0 | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |
 
 ## 🔄 自动更新机制
 
