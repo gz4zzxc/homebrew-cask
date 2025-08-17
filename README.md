@@ -57,7 +57,7 @@ brew upgrade --cask aliyundrive
 | 🔥 阿里云盘 | `aliyundrive` | 6.8.7 | ARM64 + Intel | ✅ | [官网](https://www.aliyundrive.com/) |
 | 📈 富途牛牛 | `futu-niuniu` | 15.28.12718 | Universal | ✅ | [官网](https://www.futunn.com/) |
 | 📚 欧路词典 | `eudic` | 25.7.1 | Universal | ✅ | [官网](https://www.eudic.net/) |
-| 🎨 Adobe Downloader | `adobe-downloader` | 2.1.2 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
+| 🎨 Adobe Downloader | `adobe-downloader` | 2.1.3 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
 | 🤖 Lobe Chat | `lobe-chat` | 1.113.1 | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |
 
