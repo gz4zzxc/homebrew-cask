@@ -158,8 +158,8 @@ jobs:
           echo "SHA256: $NEW_SHA256"
           echo "::endgroup::"
 
-          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
-          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
+          sed -i '' "s/  version \".*\"/  version \"$NEW_VERSION\"/" Casks/adobe-downloader.rb
+          sed -i '' "s/  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/adobe-downloader.rb
 
           sed -i '' "s/| \`adobe-downloader\` | [^|]* |/| \`adobe-downloader\` | $NEW_VERSION |/" README.md
 
