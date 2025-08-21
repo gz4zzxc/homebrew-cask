@@ -18,17 +18,19 @@ chore: update {App Name} to version {version}
 - Source: {official_source_url}
 ```
 
-若为复合版本（如 `25.7.1,1178`），提交标题与 README 显示仅使用主版本号 `25.7.1`。
+**注意**：若为复合版本（如 `25.7.1,1178`），提交标题与 README 显示仅使用主版本号 `25.7.1`。
 
-### GitHub Actions 工作流
+### GitHub Actions 工作流规范
 
-- 文件名：`update-{app-name}.yml`
-- Workflow 名称：`Update {App Name} Cask`
-- 定时任务：每日北京时间 07:00–09:00（Cron：避开整点、分散错峰）
-- 权限最小化：`contents: write`，其余按需
-- 并发与互斥：使用 `concurrency` 防止并发冲突
+#### 基本配置
 
-推荐步骤（示意）：
+- **文件名**：`update-{app-name}.yml`
+- **Workflow 名称**：`Update {App Name} Cask`
+- **定时任务**：每日北京时间 07:00–09:00（Cron：避开整点、分散错峰）
+- **权限最小化**：`contents: write`，其余按需
+- **并发与互斥**：使用 `concurrency` 防止并发冲突
+
+#### 推荐工作流结构
 
 ```yaml
 name: Update {App Name} Cask
@@ -49,6 +51,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Check new version
         id: check
         run: |
@@ -85,5 +88,7 @@ jobs:
           git push
 ```
 
-更多细节参见：[CONTRIBUTING.md](mdc:CONTRIBUTING.md)。
+### 更多细节
+
+更多细节参见：[CONTRIBUTING.md](mdc:CONTRIBUTING.md)
 

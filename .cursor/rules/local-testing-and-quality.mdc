@@ -5,27 +5,52 @@ description: 本地测试、安装验证与质量检查清单
 
 ## 本地测试与质量检查
 
-修改或新增 `Casks/*.rb` 后，至少执行：
+修改或新增 `Casks/*.rb` 后，至少执行以下检查：
+
+### 基础语法检查
 
 ```bash
-# 语法检查（Ruby）
+# Ruby 语法检查
 ruby -c Casks/{app}.rb
 
 # Homebrew 审计与风格（如需）
 brew audit --cask Casks/{app}.rb
 brew style Casks/{app}.rb
+```
 
-# 安装/卸载验证（在安全环境下执行）
+### 安装与卸载验证
+
+**注意：在安全环境下执行**
+
+```bash
+# 安装验证
 brew install --cask {tap-owner}/homebrew-cask/{app}
+
+# 卸载验证
 brew uninstall --cask {app}
 ```
 
 ### 常见问题排查
 
-- 下载失败/403：考虑增加 `verified:` 或必要的 `user_agent:` 参数。
-- 多架构校验失败：确保 `arch` 与 `sha256 arm:/intel:` 一致匹配，且下载链接能正确插值。
-- `pkg` 安装留存：配置 `uninstall pkgutil:`，并在 `zap` 中清理残留。
-- 首启引导：如需通过 `postflight` 抑制首启引导，务必保持操作幂等且可忽略失败。
+#### 下载失败/403 错误
+- 考虑增加 `verified:` 或必要的 `user_agent:` 参数
+- 检查下载链接是否仍然有效
 
-更多上下文参见：[README.md](mdc:README.md)、[CONTRIBUTING.md](mdc:CONTRIBUTING.md)、示例 cask 文件（见「项目结构导航」）。
+#### 多架构校验失败
+- 确保 `arch` 与 `sha256 arm:/intel:` 一致匹配
+- 验证下载链接能正确插值
+
+#### pkg 安装留存问题
+- 配置 `uninstall pkgutil:` 清理包管理器残留
+- 在 `zap` 中清理相关残留文件
+
+#### 首启引导处理
+- 如需通过 `postflight` 抑制首启引导，务必保持操作幂等
+- 确保操作可忽略失败且不破坏安装
+
+### 更多参考
+
+- **项目结构**：[README.md](mdc:README.md)
+- **贡献规范**：[CONTRIBUTING.md](mdc:CONTRIBUTING.md)
+- **示例 cask 文件**：见「项目结构导航」规则
 
