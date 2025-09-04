@@ -66,7 +66,7 @@ brew upgrade --cask aliyundrive
 - **质量保证**: 每次更新都会运行语法检查和基本验证
 - **通知方式**: 通过 GitHub Actions 查看更新状态
 
-> 📋 **重要规范**: 所有 GitHub Actions 在更新应用版本时，**必须同时更新** cask 文件和 README.md 中的版本号，确保文档与实际版本保持一致。详见 [贡献指南](CONTRIBUTING.md)。
+> 📋 **重要规范**: 所有 GitHub Actions 在更新应用版本时，**必须同时更新** cask 文件和 README.md 中的版本号，确保文档与实际版本保持一致。
 
 ### 手动触发更新
 
@@ -105,6 +105,7 @@ brew upgrade --cask aliyundrive
 2. 参考现有 cask 的格式编写
 3. 在 `.github/workflows/` 目录下创建对应的自动更新 workflow
 4. 更新本 README.md 文件
+5. 遵循提交信息规范（参考最近的提交记录）
 
 ## 📋 系统要求
 

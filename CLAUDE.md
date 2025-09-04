@@ -11,7 +11,6 @@ This is a personal Homebrew Cask Tap repository containing custom casks for macO
 - `Casks/` - Contains Homebrew cask definition files (.rb) for each application
 - `.github/workflows/` - GitHub Actions workflows for automated version updates
 - `README.md` - Main documentation with installation instructions and application list
-- `CONTRIBUTING.md` - Development guidelines and update procedures
 
 ## Common Development Tasks
 
@@ -38,7 +37,7 @@ brew style Casks/{app-name}.rb
 1. Create a new cask file in `Casks/` directory
 2. Create a corresponding GitHub Actions workflow in `.github/workflows/`
 3. Add the application to the README.md table
-4. Follow the commit message conventions in CONTRIBUTING.md
+4. Follow the commit message conventions (see recent commits for examples)
 
 ## Architecture Notes
 
