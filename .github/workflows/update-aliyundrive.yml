@@ -172,7 +172,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
+          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
 
           # 记录更新摘要
           echo "::group::Update Summary"
@@ -183,9 +183,9 @@ jobs:
           echo "ARM SHA256: $NEW_SHA256_ARM"
           echo "::endgroup::"
 
-          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
-          sed -i '' "s/^\s*sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/aliyundrive.rb
-          sed -i '' "s/^\s*intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/aliyundrive.rb
+          sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" Casks/aliyundrive.rb
+          sed -i '' "s/^  sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" Casks/aliyundrive.rb
+          sed -i '' "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" Casks/aliyundrive.rb
 
           NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
           sed -i '' "s/| \`aliyundrive\` | [^|]* |/| \`aliyundrive\` | $NEW_VERSION_DISPLAY |/" README.md
@@ -207,7 +207,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
+          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/aliyundrive.rb)
           
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -56,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           API="https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest"
-          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
+          CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
@@ -148,7 +148,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
 
           # 记录更新摘要
           echo "::group::Update Summary"
@@ -180,7 +180,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/adobe-downloader.rb)
           
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

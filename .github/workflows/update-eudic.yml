@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           FEED_URL="https://static.eudic.net/pkg/eudic_mac.xml"
 
-          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
+          CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/eudic.rb)
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
@@ -155,7 +155,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/eudic.rb)
 
           # 记录更新摘要
           echo "::group::Update Summary"
@@ -166,8 +166,8 @@ jobs:
           echo "SHA256: $NEW_SHA256"
           echo "::endgroup::"
 
-          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/eudic.rb
-          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/eudic.rb
+          sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" Casks/eudic.rb
+          sed -i '' "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/eudic.rb
 
           sed -i '' "s/| \`eudic\` | [^|]* |/| \`eudic\` | $NEW_VERSION_DISPLAY |/" README.md
 
@@ -189,7 +189,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/eudic.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/eudic.rb)
           
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

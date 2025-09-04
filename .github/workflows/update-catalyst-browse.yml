@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           PAGE_URL="https://www.sony.com/electronics/support/articles/CCCT03000"
-          CURRENT_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
+          CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
@@ -145,7 +145,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
           # 记录更新摘要
           echo "::group::Update Summary"
@@ -155,8 +155,8 @@ jobs:
           echo "SHA256: $NEW_SHA256"
           echo "::endgroup::"
 
-          sed -i '' "s/^\s*version \".*\"/  version \"$NEW_VERSION\"/" Casks/catalyst-browse.rb
-          sed -i '' "s/^\s*sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/catalyst-browse.rb
+          sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" Casks/catalyst-browse.rb
+          sed -i '' "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/catalyst-browse.rb
 
           sed -i '' "s/| \`catalyst-browse\` | [^|]* |/| \`catalyst-browse\` | $NEW_VERSION |/" README.md
 
@@ -177,7 +177,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^\s*version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
+          OLD_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
           
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
