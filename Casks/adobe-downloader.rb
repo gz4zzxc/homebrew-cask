@@ -8,10 +8,10 @@ cask "adobe-downloader" do
   desc "Tool to download Adobe apps (Creative Cloud alternative)"
   homepage "https://github.com/X1a0He/Adobe-Downloader"
 
-  livecheck do
-    url :url
-    strategy :github_latest
-  end
+  # livecheck do
+  #   url :url
+  #   strategy :github_latest
+  # end
 
   depends_on macos: ">= :ventura"
 

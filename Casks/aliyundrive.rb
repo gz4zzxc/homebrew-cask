@@ -13,10 +13,10 @@ cask "aliyundrive" do
   desc "Personal cloud storage service by Alibaba Group"
   homepage "https://www.aliyundrive.com/"
 
-  livecheck do
-    url "https://www.aliyundrive.com/download"
-    regex(/aDrive[._-]v?(\d+(?:\.\d+)+)(?:-arm64)?\.dmg/i)
-  end
+  # livecheck do
+  #   url "https://www.aliyundrive.com/download"
+  #   regex(/aDrive[._-]v?(\d+(?:\.\d+)+)(?:-arm64)?\.dmg/i)
+  # end
 
   auto_updates true
   depends_on macos: ">= :high_sierra"

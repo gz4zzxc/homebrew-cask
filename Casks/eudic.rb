@@ -9,10 +9,10 @@ cask "eudic" do
   desc "Dictionary and translation application"
   homepage "https://www.eudic.net/"
 
-  livecheck do
-    url "https://static.eudic.net/pkg/eudic_mac.xml"
-    strategy :sparkle, &:short_version
-  end
+  # livecheck do
+  #   url "https://static.eudic.net/pkg/eudic_mac.xml"
+  #   strategy :sparkle, &:short_version
+  # end
 
   depends_on macos: ">= :catalina"
 
