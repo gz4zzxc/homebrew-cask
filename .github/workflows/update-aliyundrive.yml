@@ -65,7 +65,7 @@ jobs:
           # 双路解析：先从 CDN 直链提取，再回退到页面文本
           cdn=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'https://cdn\.aliyundrive\.net/downloads/apps/desktop/aDrive-[^\"]+\.dmg' | head -n1 || true)
           if [[ -n "$cdn" ]]; then
-            NEW_VERSION=$(printf "%s" "$cdn" | sed -E 's#.*/aDrive-([^/-]+).*#\1#')
+            NEW_VERSION=$(printf "%s" "$cdn" | sed -E 's#.*/aDrive-([^/-]+)\.dmg.*#\1#')
           else
             NEW_VERSION=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//' || true)
           fi
