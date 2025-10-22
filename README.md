@@ -53,6 +53,7 @@ brew upgrade --cask aliyundrive
 |---------|-----------|----------|----------|----------|-----------|
 | 🔥 阿里云盘 | `aliyundrive` | 6.8.7 | ARM64 + Intel | ✅ | [官网](https://www.aliyundrive.com/) |
 | 📈 富途牛牛 | `futu-niuniu` | 15.35.13408 | Universal | ✅ | [官网](https://www.futunn.com/) |
+| 💹 长桥Pro | `longbridge-pro` | 2.33.3 | Universal | ✅ | [官网](https://longbridge.com/desktop/zh-CN/) |
 | 📚 欧路词典 | `eudic` | 25.9.0 | Universal | ✅ | [官网](https://www.eudic.net/) |
 | 🎨 Adobe Downloader | `adobe-downloader` | 2.1.3 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
