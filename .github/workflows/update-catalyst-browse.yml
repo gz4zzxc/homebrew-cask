@@ -103,6 +103,64 @@ jobs:
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
+          # 🔒 重要：验证下载文件中实际包含的版本号
+          echo "::group::Validating actual package version"
+          echo "Expected version from website: $NEW_VERSION"
+
+          # 挂载 DMG 并检查实际 PKG 版本
+          MOUNTPOINT=$(mktemp -d /tmp/catalyst-browse-mnt-XXXX)
+          WORKDIR=$(mktemp -d /tmp/catalyst-browse-pkg-XXXX)
+          cleanup() { hdiutil detach "$MOUNTPOINT" -quiet || true; rm -rf "$WORKDIR" || true; }
+          trap cleanup EXIT
+
+          hdiutil attach /tmp/catalyst-browse.dmg -nobrowse -mountpoint "$MOUNTPOINT" -quiet
+
+          PKG_PATH=$(find "$MOUNTPOINT" -maxdepth 1 -type f -name "*.pkg" -print -quit)
+          if [[ -z "${PKG_PATH:-}" ]]; then
+            echo "::error::No PKG file found in mounted DMG"
+            exit 1
+          fi
+
+          # 展开 PKG 以读取版本（兼容 distribution/flat 两种包格式）
+          EXPANDED="$WORKDIR/expanded"
+          if ! pkgutil --expand "$PKG_PATH" "$EXPANDED" 2>/dev/null; then
+            echo "::error::Failed to expand PKG for version validation"
+            exit 1
+          fi
+
+          # 解析版本：优先从 Distribution 获取，其次从 PackageInfo 获取
+          if [[ -f "$EXPANDED/Distribution" ]]; then
+            ACTUAL_VERSION=$(grep -Eo 'version="[^"]+"' "$EXPANDED/Distribution" | head -1 | sed -E 's/version="([^"]+)"/\1/')
+          else
+            PKGINFO=$(find "$EXPANDED" -name PackageInfo -type f -print -quit)
+            if [[ -n "${PKGINFO:-}" ]]; then
+              ACTUAL_VERSION=$(grep -Eo 'version="[^"]+"' "$PKGINFO" | head -1 | sed -E 's/version="([^"]+)"/\1/')
+            fi
+          fi
+
+          if [[ -z "${ACTUAL_VERSION:-}" ]]; then
+            echo "::error::Failed to extract version from PKG contents"
+            exit 1
+          fi
+
+          echo "Actual version in PKG: $ACTUAL_VERSION"
+
+          # 版本规范化：去除末尾无意义的 .0 以避免 2025.2 vs 2025.2.0 误报
+          normalize_version() { echo "$1" | sed -E 's/(\.0)+$//'; }
+          EXPECTED_NORM=$(normalize_version "$NEW_VERSION")
+          ACTUAL_NORM=$(normalize_version "$ACTUAL_VERSION")
+
+          if [[ "$ACTUAL_NORM" != "$EXPECTED_NORM" ]]; then
+            echo "::error::Version mismatch detected!"
+            echo "Website version: $NEW_VERSION (normalized: $EXPECTED_NORM)"
+            echo "PKG actual version: $ACTUAL_VERSION (normalized: $ACTUAL_NORM)"
+            echo "This indicates an issue with Sony's release - aborting update"
+            exit 1
+          fi
+
+          echo "::notice::Version validation passed - versions match"
+          echo "::endgroup::"
+
           SHA=$(shasum -a 256 /tmp/catalyst-browse.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
