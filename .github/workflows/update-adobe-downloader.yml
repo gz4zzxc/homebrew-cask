@@ -20,6 +20,8 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # 检查是否有其他更新正在进行
       - name: Check for running updates

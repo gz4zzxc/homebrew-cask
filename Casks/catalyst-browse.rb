@@ -1,6 +1,5 @@
 cask "catalyst-browse" do
-  version "2025.3"
-  sha256 "24bf06358ea7b9c359b934599786a5f9b97e970b7ebbcc3685d019c2c2bbadf1"
+  sha256 :no_check
 
   url "https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg",
       verified: "di.update.sony.net/"
@@ -17,7 +16,7 @@ cask "catalyst-browse" do
   auto_updates true
   depends_on macos: ">= :monterey"
 
-  pkg "Catalyst Browse #{version}.pkg"
+  pkg "Catalyst Browse.pkg"
 
   postflight do
     # Create application support directory if it doesn't exist
