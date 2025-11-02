@@ -8,6 +8,7 @@ cask "eudic" do
   name "欧路词典"
   desc "Dictionary and translation application"
   homepage "https://www.eudic.net/"
+  auto_updates true
 
   # livecheck do
   #   url "https://static.eudic.net/pkg/eudic_mac.xml"

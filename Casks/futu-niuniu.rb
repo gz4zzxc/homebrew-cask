@@ -8,6 +8,7 @@ cask "futu-niuniu" do
   name "富途牛牛"
   desc "富途证券官方交易软件，支持港股、美股、A股交易"
   homepage "https://www.futunn.com/"
+  auto_updates true
 
   app "富途牛牛.app"
 
