@@ -6,7 +6,7 @@ cask "longbridge-pro" do
          intel: "9a16323f509f80d8b3779fcb7a937458dd20ce27086485b46f50ee7cbd467944"
 
   url "https://download.lbkrs.com/longbridge-desktop/prod/longbridge-pro-#{version}-mac-#{arch}.dmg",
-      verified: "download.lbkrs.com/longbridge-desktop/prod/"
+      verified: "download.lbkrs.com/"
   name "Longbridge Pro"
   name "长桥Pro"
   desc "跨市场券商交易平台"
