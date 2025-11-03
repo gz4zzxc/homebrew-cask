@@ -71,6 +71,47 @@ jobs:
           fi
           set -o pipefail
 
+          # 如果页面解析失败或版本与当前相同，尝试 CDN 版本递增检测
+          if [[ -z "${NEW_VERSION:-}" || "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "::warning::Page version detection failed or same as current, trying CDN version detection..."
+
+            # 从当前版本号开始递增检测
+            MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+
+            # 首先尝试递增次版本号（因为从 6.8.7 -> 6.9.0 是次版本递增）
+            for minor_increment in {1..5}; do
+              TEST_MINOR=$((MINOR + minor_increment))
+              # 对于新的次版本，从补丁版本 0 开始测试
+              for patch_version in {0..9}; do
+                TEST_VERSION="${MAJOR}.${TEST_MINOR}.${patch_version}"
+                TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
+
+                if curl -fsSL -I -A "$UA" "$TEST_URL" | grep -q "HTTP/[12].* 200"; then
+                  echo "::notice::Found new version via CDN detection: $TEST_VERSION"
+                  NEW_VERSION="$TEST_VERSION"
+                  break 3
+                fi
+              done
+            done
+
+            # 如果次版本递增没找到新版本，再尝试递增当前版本的补丁版本
+            if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+              for patch_increment in {1..10}; do
+                TEST_PATCH=$((PATCH + patch_increment))
+                TEST_VERSION="${MAJOR}.${MINOR}.${TEST_PATCH}"
+                TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
+
+                if curl -fsSL -I -A "$UA" "$TEST_URL" | grep -q "HTTP/[12].* 200"; then
+                  echo "::notice::Found new version via CDN detection: $TEST_VERSION"
+                  NEW_VERSION="$TEST_VERSION"
+                  break 2
+                fi
+              done
+            fi
+          fi
+
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "::warning::Failed to parse latest version, skipping."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
