@@ -120,8 +120,32 @@ jobs:
 
           echo "Latest version: $NEW_VERSION"
 
+          # 检查是否需要更新，防止版本倒退
           if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
             echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 使用版本比较函数防止版本倒退
+          version_compare() {
+            local ver1=$1 ver2=$2
+            local IFS=.
+            local i ver1_array=($ver1) ver2_array=($ver2)
+            # 补齐版本数组到相同长度
+            for ((i=${#ver1_array[@]}; i<${#ver2_array[@]}; i++)); do ver1_array[i]=0; done
+            for ((i=${#ver2_array[@]}; i<${#ver1_array[@]}; i++)); do ver2_array[i]=0; done
+            # 逐位比较
+            for ((i=0; i<${#ver1_array[@]}; i++)); do
+              if ((ver1_array[i] < ver2_array[i])); then echo -1; return; fi
+              if ((ver1_array[i] > ver2_array[i])); then echo 1; return; fi
+            done
+            echo 0
+          }
+
+          COMPARE_RESULT=$(version_compare "$NEW_VERSION" "$CURRENT_VERSION")
+          if [[ $COMPARE_RESULT -lt 0 ]]; then
+            echo "::warning::New version $NEW_VERSION is older than current version $CURRENT_VERSION, skipping update to prevent version rollback"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
