@@ -35,9 +35,6 @@ brew install --cask adobe-downloader
 
 # 安装 Sony Catalyst Browse
 brew install --cask catalyst-browse
-
-# 安装 LobeHub
-brew install --cask loberhub
 ```
 
 ### 3. 更新应用
@@ -60,7 +57,6 @@ brew upgrade --cask aliyundrive
 | 📚 欧路词典 | `eudic` | 25.9.0 | Universal | ✅ | [官网](https://www.eudic.net/) |
 | 🎨 Adobe Downloader | `adobe-downloader` | 2.1.3 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
-| 🤖 LobeHub | `lobehub` | 1.142.8 | ARM64 + Intel | ✅ | [GitHub](https://github.com/lobehub/lobe-chat) |
 
 ## 🔄 自动更新机制
 
