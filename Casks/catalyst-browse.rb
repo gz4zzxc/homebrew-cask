@@ -25,38 +25,27 @@ cask "catalyst-browse" do
     system_command "/bin/mkdir", args: ["-p", support_dir]
 
     # Try to prevent first-run tutorial by creating multiple marker files
-    marker_files = [
-      "#{support_dir}/.tutorial_shown",
-      "#{support_dir}/.first_launch_done",
-      "#{support_dir}/.welcome_shown",
-      "#{support_dir}/tutorial_completed",
-    ]
-    marker_files.each do |file|
-      system_command "/usr/bin/touch", args: [file]
+    %w[
+      .tutorial_shown
+      .first_launch_done
+      .welcome_shown
+      tutorial_completed
+    ].each do |file|
+      system_command "/usr/bin/touch", args: ["#{support_dir}/#{file}"]
     end
 
     # Set comprehensive preferences to disable first-run behavior
-    prefs = [
-      ["FirstLaunch", "false"],
-      ["ShowTutorial", "false"],
-      ["WelcomeShown", "true"],
-      ["TutorialCompleted", "true"],
-      ["FirstRun", "false"],
-      ["ShowWelcome", "false"],
-      ["InitialSetupDone", "true"],
-      ["HasLaunchedBefore", "true"],
-    ]
-
-    prefs.each do |key, value|
-      system_command "/usr/bin/defaults", args: ["write", "com.sony.Catalyst", key, "-bool", value]
-    end
-
-    # Also try setting for potential alternative preference domains
-    alt_domains = ["com.sony.CatalystBrowse", "com.sony.SonyCreativeSoftware.Browse"]
-    alt_domains.each do |domain|
-      prefs.each do |key, value|
-        system_command "/usr/bin/defaults", args: ["write", domain, key, "-bool", value], print_stderr: false
-      end
+    {
+      "FirstLaunch"       => "false",
+      "ShowTutorial"      => "false",
+      "WelcomeShown"      => "true",
+      "TutorialCompleted" => "true",
+      "FirstRun"          => "false",
+      "ShowWelcome"       => "false",
+      "InitialSetupDone"  => "true",
+      "HasLaunchedBefore" => "true",
+    }.each do |key, value|
+      system_command "/usr/bin/defaults", args: ["write", "com.sony.CatalystBrowse", key, "-bool", value]
     end
   end
 
