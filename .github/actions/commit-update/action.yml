@@ -56,25 +56,25 @@ runs:
         echo "::endgroup::"
 
         # Update Cask file
-        sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb"
+        sed -i.bak "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         
         if [[ -n "$NEW_SHA256" ]]; then
-          sed -i '' "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb"
+          sed -i.bak "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
         
         if [[ -n "$NEW_SHA256_ARM" ]]; then
-          sed -i '' "s/^  sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb"
+          sed -i.bak "s/^  sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
         
         if [[ -n "$NEW_SHA256_INTEL" ]]; then
-          sed -i '' "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb"
+          sed -i.bak "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
 
         # Update README
         # Use a more robust sed pattern to handle potential special characters in version
         # Escape special characters in version string for sed
-        ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[\/&[].*^$\\]/\\&/g')
-        sed -i '' "s/| \`$CASK_NAME\` | [^|]* |/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md
+        ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[][\/&.*^$\\]/\\&/g')
+        sed -i.bak "s/| \`$CASK_NAME\` | [^|]* |/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md && rm README.md.bak
 
         echo "::notice::Cask file updated successfully"
         echo "::notice::README.md updated successfully"
@@ -84,7 +84,9 @@ runs:
       env:
         CASK_NAME: ${{ inputs.cask_name }}
       run: |
-        ruby -c "Casks/$CASK_NAME.rb"
+        if [[ -n $(git status --porcelain "Casks/$CASK_NAME.rb") ]]; then
+          ruby -c "Casks/$CASK_NAME.rb"
+        fi
         grep "\`$CASK_NAME\`" README.md | cat
 
     - name: Commit and push
@@ -105,7 +107,20 @@ runs:
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add "Casks/$CASK_NAME.rb" README.md
         
-        COMMIT_MSG="chore: update $(echo "$CASK_NAME" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1') to version ${NEW_VERSION}"
+        # Function to map cask names to display names
+        get_display_name() {
+          case "$1" in
+            futu-niuniu) echo "Futu Niuniu" ;;
+            aliyundrive) echo "AliyunDrive" ;;
+            # Add more mappings as needed
+            *)
+              # Default: replace hyphens with spaces and capitalize each word
+              echo "$1" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1'
+              ;;
+          esac
+        }
+        
+        COMMIT_MSG="chore: update $(get_display_name "$CASK_NAME") to version ${NEW_VERSION}"
         
         git commit \
           -m "$COMMIT_MSG" \
