@@ -21,18 +21,10 @@ jobs:
 
       - name: Check for running updates
         id: check-running
-        run: |
-          echo "::group::Checking for running updates"
-          RUNNING_COUNT=$(gh run list --workflow="Update Longbridge Pro Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
-          echo "Found $RUNNING_COUNT running updates"
-
-          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
-            echo "::warning::Multiple updates are running, this might cause conflicts"
-            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
-          fi
-          echo "::endgroup::"
+        uses: ./.github/actions/check-concurrency
+        with:
+          workflow_name: "Update Longbridge Pro Cask"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore download cache
         uses: actions/cache/restore@v4
@@ -134,83 +126,25 @@ jobs:
           path: /tmp/longbridge-pro-*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
-      - name: Apply updates
-        if: steps.check.outputs.update_needed == 'true'
-        env:
-          NEW_VERSION: ${{ steps.check.outputs.new_version }}
-          ARM_SHA: ${{ steps.check.outputs.new_sha256_arm }}
-          INTEL_SHA: ${{ steps.check.outputs.new_sha256_intel }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/longbridge-pro.rb)
-
-          echo "::group::Update Summary"
-          echo "Cask: longbridge-pro"
-          echo "Old Version: $OLD_VERSION"
-          echo "New Version: $NEW_VERSION"
-          echo "ARM SHA256: $ARM_SHA"
-          echo "Intel SHA256: $INTEL_SHA"
-          echo "::endgroup::"
-
-          sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" Casks/longbridge-pro.rb
-          sed -i '' "s/^  sha256 arm:   \".*\"/  sha256 arm:   \"$ARM_SHA\"/" Casks/longbridge-pro.rb
-          sed -i '' "s/^         intel: \".*\"/         intel: \"$INTEL_SHA\"/" Casks/longbridge-pro.rb
-
-          sed -i '' "s/| \`longbridge-pro\` | [^|]* |/| \`longbridge-pro\` | $NEW_VERSION |/" README.md
-
-          echo "::notice::Cask file updated successfully"
-          echo "::notice::README.md updated successfully"
-
-      - name: Validate
-        if: steps.check.outputs.update_needed == 'true'
-        shell: bash
-        run: |
-          ruby -c Casks/longbridge-pro.rb
-          grep "\`longbridge-pro\`" README.md | cat
-
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
-        env:
-          NEW_VERSION: ${{ steps.check.outputs.new_version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/longbridge-pro.rb)
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/longbridge-pro.rb README.md
-          git commit \
-            -m "chore: update Longbridge Pro to version ${NEW_VERSION}" \
-            -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
-            -m "- Updated SHA256 checksums" \
-            -m "- Updated README.md version table" \
-            -m "- Source: https://download.wbrks.com/longbridge-desktop/prod/latest-mac.yml" || exit 0
-          git push
+        uses: ./.github/actions/commit-update
+        with:
+          cask_name: longbridge-pro
+          display_name: "Longbridge Pro"
+          new_version: ${{ steps.check.outputs.new_version }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
+          new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
+          download_url: "https://download.wbrks.com/longbridge-desktop/prod/latest-mac.yml"
 
       - name: Final status report
         if: always()
-        run: |
-          echo "::group::Final Status Report"
-          echo "Workflow: Update Longbridge Pro Cask"
-          echo "Run ID: ${{ github.run_id }}"
-          echo "Run Attempt: ${{ github.run_attempt }}"
-          echo "Status: ${{ job.status }}"
-
-          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
-            echo "Update: Required and processed"
-            echo "Old Version: ${{ steps.check.outputs.old_version }}"
-            echo "New Version: ${{ steps.check.outputs.new_version }}"
-          else
-            echo "Update: Not required or failed"
-          fi
-
-          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
-            echo "Conflict: Multiple updates detected"
-          fi
-
-          echo "::endgroup::"
-
-          rm -f /tmp/longbridge-pro-*.dmg
-          echo "::notice::Temporary files cleaned up"
+        uses: ./.github/actions/final-report
+        with:
+          job_status: ${{ job.status }}
+          update_needed: ${{ steps.check.outputs.update_needed }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_version: ${{ steps.check.outputs.new_version }}
+          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
+          workflow_name: "Update Longbridge Pro Cask"

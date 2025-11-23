@@ -144,6 +144,7 @@ jobs:
         uses: ./.github/actions/commit-update
         with:
           cask_name: eudic
+          display_name: "Eudic"
           new_version: ${{ steps.check.outputs.new_version }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256: ${{ steps.check.outputs.new_sha256 }}

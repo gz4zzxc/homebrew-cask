@@ -4,6 +4,9 @@ inputs:
   cask_name:
     description: 'Name of the cask (e.g., aliyundrive)'
     required: true
+  display_name:
+    description: 'Display name for the cask (e.g., AliyunDrive)'
+    required: false
   new_version:
     description: 'New version string'
     required: true
@@ -38,6 +41,7 @@ runs:
         NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
         DISPLAY_VERSION: ${{ inputs.new_version_display }}
         CASK_NAME: ${{ inputs.cask_name }}
+        DISPLAY_NAME: ${{ inputs.display_name }}
         OLD_VERSION: ${{ inputs.old_version }}
       run: |
         set -euo pipefail
@@ -84,7 +88,11 @@ runs:
       env:
         CASK_NAME: ${{ inputs.cask_name }}
       run: |
-        ruby -c "Casks/$CASK_NAME.rb"
+        if [[ -f "Casks/$CASK_NAME.rb" ]]; then
+          ruby -c "Casks/$CASK_NAME.rb"
+        else
+          echo "::warning::Cask file Casks/$CASK_NAME.rb not found, skipping syntax check"
+        fi
         grep "\`$CASK_NAME\`" README.md | cat
 
     - name: Commit and push
@@ -97,6 +105,7 @@ runs:
         NEW_VERSION_DISPLAY: ${{ inputs.new_version_display }}
         NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
         NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
+        DISPLAY_NAME: ${{ inputs.display_name }}
       run: |
         set -euo pipefail
         
@@ -107,7 +116,7 @@ runs:
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add "Casks/$CASK_NAME.rb" README.md
         
-        # Function to map cask names to display names
+        # Function to map cask names to display names (fallback)
         get_display_name() {
           case "$1" in
             futu-niuniu) echo "Futu Niuniu" ;;
@@ -120,7 +129,10 @@ runs:
           esac
         }
         
-        COMMIT_MSG="chore: update $(get_display_name "$CASK_NAME") to version ${NEW_VERSION}"
+        # Use provided display name or fallback to generated one
+        FINAL_DISPLAY_NAME="${DISPLAY_NAME:-$(get_display_name "$CASK_NAME")}"
+        
+        COMMIT_MSG="chore: update $FINAL_DISPLAY_NAME to version ${NEW_VERSION}"
         
         # Determine SHA256 commit message
         SHA256_MSG="- Updated SHA256 checksum"

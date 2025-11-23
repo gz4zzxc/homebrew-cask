@@ -232,6 +232,7 @@ jobs:
         uses: ./.github/actions/commit-update
         with:
           cask_name: aliyundrive
+          display_name: "AliyunDrive"
           new_version: ${{ steps.check.outputs.new_version }}
           new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
