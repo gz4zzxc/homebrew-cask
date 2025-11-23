@@ -95,6 +95,8 @@ runs:
         DOWNLOAD_URL: ${{ inputs.download_url }}
         CASK_NAME: ${{ inputs.cask_name }}
         NEW_VERSION_DISPLAY: ${{ inputs.new_version_display }}
+        NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
+        NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
       run: |
         set -euo pipefail
         
@@ -120,10 +122,20 @@ runs:
         
         COMMIT_MSG="chore: update $(get_display_name "$CASK_NAME") to version ${NEW_VERSION}"
         
+        # Determine SHA256 commit message
+        SHA256_MSG="- Updated SHA256 checksum"
+        if [[ -n "$NEW_SHA256_INTEL" && -n "$NEW_SHA256_ARM" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (arm64/intel)"
+        elif [[ -n "$NEW_SHA256_INTEL" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (intel)"
+        elif [[ -n "$NEW_SHA256_ARM" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (arm64)"
+        fi
+        
         git commit \
           -m "$COMMIT_MSG" \
           -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
-          -m "- Updated SHA256 checksum" \
+          -m "$SHA256_MSG" \
           -m "- Updated README.md version table (display ${NEW_VERSION_DISPLAY})" \
           -m "- Source: ${DOWNLOAD_URL}" || exit 0
         git push
