@@ -4,6 +4,9 @@ inputs:
   workflow_name:
     description: 'Name of the workflow to check'
     required: true
+  github_token:
+    description: 'GitHub token for authentication'
+    required: true
 outputs:
   running_conflict:
     description: 'True if multiple updates are running'
@@ -15,6 +18,8 @@ runs:
     - name: Check for running updates
       id: check
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
       run: |
         echo "::group::Checking for running updates"
         RUNNING_COUNT=$(gh run list --workflow="${{ inputs.workflow_name }}" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)

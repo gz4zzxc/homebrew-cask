@@ -25,6 +25,7 @@ jobs:
         uses: ./.github/actions/check-concurrency
         with:
           workflow_name: "Update Futu Niuniu Cask"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
