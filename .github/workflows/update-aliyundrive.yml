@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache/restore@v4
         id: download-cache
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ runner.os }}-aliyundrive-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-aliyundrive-
@@ -151,24 +151,26 @@ jobs:
           echo "Intel URL: $INTEL_URL"
           echo "ARM URL: $ARM_URL"
 
+          mkdir -p /tmp/cask-downloads
+
           # 并行下载以提高性能
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/adrive-intel.dmg &
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/cask-downloads/adrive-intel.dmg &
           INTEL_PID=$!
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/adrive-arm64.dmg &
+          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/cask-downloads/adrive-arm64.dmg &
           ARM_PID=$!
           
           # 等待所有下载完成
           wait $INTEL_PID $ARM_PID
           
           # 验证下载的文件
-          if [[ ! -f /tmp/adrive-intel.dmg ]] || [[ ! -f /tmp/adrive-arm64.dmg ]]; then
+          if [[ ! -f /tmp/cask-downloads/adrive-intel.dmg ]] || [[ ! -f /tmp/cask-downloads/adrive-arm64.dmg ]]; then
             echo "::error::Download failed - files not found"
             exit 1
           fi
           
           # 检查文件大小
-          INTEL_SIZE=$(stat -f%z /tmp/adrive-intel.dmg 2>/dev/null || stat -c%s /tmp/adrive-intel.dmg 2>/dev/null || echo "0")
-          ARM_SIZE=$(stat -f%z /tmp/adrive-arm64.dmg 2>/dev/null || stat -c%s /tmp/adrive-arm64.dmg 2>/dev/null || echo "0")
+          INTEL_SIZE=$(stat -f%z /tmp/cask-downloads/adrive-intel.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/adrive-intel.dmg 2>/dev/null || echo "0")
+          ARM_SIZE=$(stat -f%z /tmp/cask-downloads/adrive-arm64.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/adrive-arm64.dmg 2>/dev/null || echo "0")
           
           if [[ "$INTEL_SIZE" -lt 1000000 ]] || [[ "$ARM_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded files are too small - possible corruption"
@@ -178,8 +180,8 @@ jobs:
           echo "::notice::Files downloaded successfully - Intel: ${INTEL_SIZE} bytes, ARM: ${ARM_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA_INTEL=$(shasum -a 256 /tmp/adrive-intel.dmg | awk '{print $1}')
-          SHA_ARM=$(shasum -a 256 /tmp/adrive-arm64.dmg | awk '{print $1}')
+          SHA_INTEL=$(shasum -a 256 /tmp/cask-downloads/adrive-intel.dmg | awk '{print $1}')
+          SHA_ARM=$(shasum -a 256 /tmp/cask-downloads/adrive-arm64.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256_intel=$SHA_INTEL" >> "$GITHUB_OUTPUT"
@@ -216,7 +218,7 @@ jobs:
           steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push

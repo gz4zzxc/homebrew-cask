@@ -48,5 +48,5 @@ runs:
         echo "::endgroup::"
         
         # 清理临时文件
-        rm -f /tmp/*.dmg
+        rm -rf /tmp/cask-downloads
         echo "::notice::Temporary files cleaned up"

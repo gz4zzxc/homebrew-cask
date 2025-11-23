@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache/restore@v4
         id: download-cache
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ runner.os }}-futu-niuniu-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-futu-niuniu-
@@ -79,16 +79,17 @@ jobs:
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
           
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/futu-niuniu.dmg
+          mkdir -p /tmp/cask-downloads
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/futu-niuniu.dmg
           
           # 验证下载的文件
-          if [[ ! -f /tmp/futu-niuniu.dmg ]]; then
+          if [[ ! -f /tmp/cask-downloads/futu-niuniu.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
           
           # 检查文件大小
-          FILE_SIZE=$(stat -f%z /tmp/futu-niuniu.dmg 2>/dev/null || stat -c%s /tmp/futu-niuniu.dmg 2>/dev/null || echo "0")
+          FILE_SIZE=$(stat -f%z /tmp/cask-downloads/futu-niuniu.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/futu-niuniu.dmg 2>/dev/null || echo "0")
           
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
@@ -98,7 +99,7 @@ jobs:
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(shasum -a 256 /tmp/futu-niuniu.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 /tmp/cask-downloads/futu-niuniu.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
@@ -129,7 +130,7 @@ jobs:
           steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
