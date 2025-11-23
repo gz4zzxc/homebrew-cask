@@ -36,11 +36,14 @@ runs:
         NEW_SHA256: ${{ inputs.new_sha256 }}
         NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
         NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
-        DISPLAY_VERSION: ${{ inputs.new_version_display || inputs.new_version }}
+        DISPLAY_VERSION: ${{ inputs.new_version_display }}
         CASK_NAME: ${{ inputs.cask_name }}
         OLD_VERSION: ${{ inputs.old_version }}
       run: |
         set -euo pipefail
+        
+        # Fallback for DISPLAY_VERSION if empty
+        DISPLAY_VERSION="${DISPLAY_VERSION:-$NEW_VERSION}"
         
         # 记录更新摘要
         echo "::group::Update Summary"
@@ -91,9 +94,12 @@ runs:
         OLD_VERSION: ${{ inputs.old_version }}
         DOWNLOAD_URL: ${{ inputs.download_url }}
         CASK_NAME: ${{ inputs.cask_name }}
-        NEW_VERSION_DISPLAY: ${{ inputs.new_version_display || inputs.new_version }}
+        NEW_VERSION_DISPLAY: ${{ inputs.new_version_display }}
       run: |
         set -euo pipefail
+        
+        # Fallback for DISPLAY_VERSION if empty
+        NEW_VERSION_DISPLAY="${NEW_VERSION_DISPLAY:-$NEW_VERSION}"
         
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
