@@ -184,6 +184,11 @@ jobs:
           SHA_ARM=$(shasum -a 256 /tmp/cask-downloads/adrive-arm64.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          
+          # Calculate display version (remove build number if present)
+          NEW_VERSION_DISPLAY=$(echo "$NEW_VERSION" | cut -d',' -f1)
+          echo "new_version_display=$NEW_VERSION_DISPLAY" >> "$GITHUB_OUTPUT"
+          
           echo "new_sha256_intel=$SHA_INTEL" >> "$GITHUB_OUTPUT"
           echo "new_sha256_arm=$SHA_ARM" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
@@ -227,6 +232,7 @@ jobs:
         with:
           cask_name: aliyundrive
           new_version: ${{ steps.check.outputs.new_version }}
+          new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
           new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
