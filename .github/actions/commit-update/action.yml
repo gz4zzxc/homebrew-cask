@@ -84,9 +84,7 @@ runs:
       env:
         CASK_NAME: ${{ inputs.cask_name }}
       run: |
-        if [[ -n $(git status --porcelain "Casks/$CASK_NAME.rb") ]]; then
-          ruby -c "Casks/$CASK_NAME.rb"
-        fi
+        ruby -c "Casks/$CASK_NAME.rb"
         grep "\`$CASK_NAME\`" README.md | cat
 
     - name: Commit and push
