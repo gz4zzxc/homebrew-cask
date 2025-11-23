@@ -26,7 +26,8 @@ runs:
         echo "Found $RUNNING_COUNT running updates"
         
         if [[ "$RUNNING_COUNT" -gt 1 ]]; then
-          echo "::warning::Multiple updates are running, this might cause conflicts"
+          echo "::notice::Detected $RUNNING_COUNT concurrent runs of this workflow"
+          echo "::notice::This is informational only - the 'concurrency' setting will handle conflicts automatically"
           echo "running_conflict=true" >> "$GITHUB_OUTPUT"
         else
           echo "running_conflict=false" >> "$GITHUB_OUTPUT"

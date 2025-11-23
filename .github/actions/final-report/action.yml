@@ -32,6 +32,7 @@ runs:
         echo "Run ID: ${{ github.run_id }}"
         echo "Run Attempt: ${{ github.run_attempt }}"
         echo "Status: ${{ inputs.job_status }}"
+        echo "Duration: Approximately $((SECONDS / 60))m $((SECONDS % 60))s"
         
         if [[ "${{ inputs.update_needed }}" == "true" ]]; then
           echo "Update: Required and processed"
