@@ -22,18 +22,9 @@ jobs:
       # 检查是否有其他更新正在进行
       - name: Check for running updates
         id: check-running
-        run: |
-          echo "::group::Checking for running updates"
-          RUNNING_COUNT=$(gh run list --workflow="Update Futu Niuniu Cask" --status=in_progress --limit=10 --json status --jq '.[] | select(.status == "in_progress") | .status' | wc -l)
-          echo "Found $RUNNING_COUNT running updates"
-          
-          if [[ "$RUNNING_COUNT" -gt 1 ]]; then
-            echo "::warning::Multiple updates are running, this might cause conflicts"
-            echo "running_conflict=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "running_conflict=false" >> "$GITHUB_OUTPUT"
-          fi
-          echo "::endgroup::"
+        uses: ./.github/actions/check-concurrency
+        with:
+          workflow_name: "Update Futu Niuniu Cask"
 
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
@@ -141,83 +132,24 @@ jobs:
           path: /tmp/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
-      - name: Apply updates
-        if: steps.check.outputs.update_needed == 'true'
-        env:
-          NEW_VERSION: ${{ steps.check.outputs.new_version }}
-          NEW_SHA256: ${{ steps.check.outputs.new_sha256 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/futu-niuniu.rb)
-
-          # 记录更新摘要
-          echo "::group::Update Summary"
-          echo "Cask: futu-niuniu"
-          echo "Old Version: $OLD_VERSION"
-          echo "New Version: $NEW_VERSION"
-          echo "SHA256: $NEW_SHA256"
-          echo "::endgroup::"
-
-          sed -i '' "s/^  version \".*\"/  version \"$NEW_VERSION\"/" Casks/futu-niuniu.rb
-          sed -i '' "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" Casks/futu-niuniu.rb
-
-          sed -i '' "s/| \`futu-niuniu\` | [^|]* |/| \`futu-niuniu\` | $NEW_VERSION |/" README.md
-
-          echo "::notice::Cask file updated successfully"
-          echo "::notice::README.md updated successfully"
-
-      - name: Validate
-        if: steps.check.outputs.update_needed == 'true'
-        shell: bash
-        run: |
-          ruby -c Casks/futu-niuniu.rb
-          grep "\`futu-niuniu\`" README.md | cat
-
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
-        env:
-          NEW_VERSION: ${{ steps.check.outputs.new_version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          OLD_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/futu-niuniu.rb)
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/futu-niuniu.rb README.md
-          git commit \
-            -m "chore: update Futu Niuniu to version ${NEW_VERSION}" \
-            -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
-            -m "- Updated SHA256 checksum" \
-            -m "- Updated README.md version table" \
-            -m "- Source: https://www.futunn.com/download/mac" || exit 0
-          git push
+        uses: ./.github/actions/commit-update
+        with:
+          cask_name: futu-niuniu
+          new_version: ${{ steps.check.outputs.new_version }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_sha256: ${{ steps.check.outputs.new_sha256 }}
+          download_url: "https://www.futunn.com/download/mac"
 
       # 最终状态报告
       - name: Final status report
         if: always()
-        run: |
-          echo "::group::Final Status Report"
-          echo "Workflow: Update Futu Niuniu Cask"
-          echo "Run ID: ${{ github.run_id }}"
-          echo "Run Attempt: ${{ github.run_attempt }}"
-          echo "Status: ${{ job.status }}"
-          
-          if [[ "${{ steps.check.outputs.update_needed }}" == "true" ]]; then
-            echo "Update: Required and processed"
-            echo "Old Version: ${{ steps.check.outputs.old_version }}"
-            echo "New Version: ${{ steps.check.outputs.new_version }}"
-          else
-            echo "Update: Not required or failed"
-          fi
-          
-          if [[ "${{ steps.check-running.outputs.running_conflict }}" == "true" ]]; then
-            echo "Conflict: Multiple updates detected"
-          fi
-          
-          echo "::endgroup::"
-          
-          # 清理临时文件
-          rm -f /tmp/*.dmg
-          echo "::notice::Temporary files cleaned up"
+        uses: ./.github/actions/final-report
+        with:
+          job_status: ${{ job.status }}
+          update_needed: ${{ steps.check.outputs.update_needed }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_version: ${{ steps.check.outputs.new_version }}
+          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
+          workflow_name: "Update Futu Niuniu Cask"

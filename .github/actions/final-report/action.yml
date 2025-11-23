@@ -1,0 +1,52 @@
+name: 'Final Report'
+description: 'Reports the final status of the workflow and cleans up'
+inputs:
+  job_status:
+    description: 'Status of the job'
+    required: true
+  update_needed:
+    description: 'Whether an update was needed'
+    required: true
+  old_version:
+    description: 'Old version string'
+    required: false
+  new_version:
+    description: 'New version string'
+    required: false
+  running_conflict:
+    description: 'Whether there was a running conflict'
+    required: false
+  workflow_name:
+    description: 'Name of the workflow'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Final status report
+      if: always()
+      shell: bash
+      run: |
+        echo "::group::Final Status Report"
+        echo "Workflow: ${{ inputs.workflow_name }}"
+        echo "Run ID: ${{ github.run_id }}"
+        echo "Run Attempt: ${{ github.run_attempt }}"
+        echo "Status: ${{ inputs.job_status }}"
+        
+        if [[ "${{ inputs.update_needed }}" == "true" ]]; then
+          echo "Update: Required and processed"
+          echo "Old Version: ${{ inputs.old_version }}"
+          echo "New Version: ${{ inputs.new_version }}"
+        else
+          echo "Update: Not required or failed"
+        fi
+        
+        if [[ "${{ inputs.running_conflict }}" == "true" ]]; then
+          echo "Conflict: Multiple updates detected"
+        fi
+        
+        echo "::endgroup::"
+        
+        # 清理临时文件
+        rm -f /tmp/*.dmg
+        echo "::notice::Temporary files cleaned up"
