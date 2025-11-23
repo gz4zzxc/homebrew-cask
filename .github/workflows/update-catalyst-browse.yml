@@ -76,7 +76,10 @@ jobs:
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
           
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/catalyst-browse.dmg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
+            -H "Referer: https://www.sony.com/" \
+            "$URL" -o /tmp/catalyst-browse.dmg
           
           # 验证下载的文件
           if [[ ! -f /tmp/catalyst-browse.dmg ]]; then
