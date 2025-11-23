@@ -70,7 +70,7 @@ runs:
         # Update README
         # Use a more robust sed pattern to handle potential special characters in version
         # Escape special characters in version string for sed
-        ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[\/&]/\\&/g')
+        ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[\/&[].*^$\\]/\\&/g')
         sed -i '' "s/| \`$CASK_NAME\` | [^|]* |/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md
 
         echo "::notice::Cask file updated successfully"
