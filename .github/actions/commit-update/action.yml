@@ -1,0 +1,141 @@
+name: 'Commit Update'
+description: 'Commits and pushes the updated Cask and README'
+inputs:
+  cask_name:
+    description: 'Name of the cask (e.g., aliyundrive)'
+    required: true
+  new_version:
+    description: 'New version string'
+    required: true
+  old_version:
+    description: 'Old version string'
+    required: true
+  new_sha256:
+    description: 'New SHA256 checksum (for single arch or universal)'
+    required: false
+  new_sha256_intel:
+    description: 'New Intel SHA256 checksum'
+    required: false
+  new_sha256_arm:
+    description: 'New ARM SHA256 checksum'
+    required: false
+  new_version_display:
+    description: 'Display version for README (optional, defaults to new_version)'
+    required: false
+  download_url:
+    description: 'Source URL for the download'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Apply updates
+      shell: bash
+      env:
+        NEW_VERSION: ${{ inputs.new_version }}
+        NEW_SHA256: ${{ inputs.new_sha256 }}
+        NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
+        NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
+        DISPLAY_VERSION: ${{ inputs.new_version_display }}
+        CASK_NAME: ${{ inputs.cask_name }}
+        OLD_VERSION: ${{ inputs.old_version }}
+      run: |
+        set -euo pipefail
+        
+        # Fallback for DISPLAY_VERSION if empty
+        DISPLAY_VERSION="${DISPLAY_VERSION:-$NEW_VERSION}"
+        
+        # 记录更新摘要
+        echo "::group::Update Summary"
+        echo "Cask: $CASK_NAME"
+        echo "Old Version: $OLD_VERSION"
+        echo "New Version: $NEW_VERSION"
+        if [[ -n "$NEW_SHA256" ]]; then echo "SHA256: $NEW_SHA256"; fi
+        if [[ -n "$NEW_SHA256_INTEL" ]]; then echo "Intel SHA256: $NEW_SHA256_INTEL"; fi
+        if [[ -n "$NEW_SHA256_ARM" ]]; then echo "ARM SHA256: $NEW_SHA256_ARM"; fi
+        echo "::endgroup::"
+
+        # Update Cask file
+        sed -i.bak "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+        
+        if [[ -n "$NEW_SHA256" ]]; then
+          sed -i.bak "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+        fi
+        
+        if [[ -n "$NEW_SHA256_ARM" ]]; then
+          sed -i.bak "s/^  sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+        fi
+        
+        if [[ -n "$NEW_SHA256_INTEL" ]]; then
+          sed -i.bak "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+        fi
+
+        # Update README
+        # Use a more robust sed pattern to handle potential special characters in version
+        # Escape special characters in version string for sed
+        ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[][\/&.*^$\\]/\\&/g')
+        sed -i.bak "s/| \`$CASK_NAME\` | [^|]* |/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md && rm README.md.bak
+
+        echo "::notice::Cask file updated successfully"
+        echo "::notice::README.md updated successfully"
+
+    - name: Validate
+      shell: bash
+      env:
+        CASK_NAME: ${{ inputs.cask_name }}
+      run: |
+        ruby -c "Casks/$CASK_NAME.rb"
+        grep "\`$CASK_NAME\`" README.md | cat
+
+    - name: Commit and push
+      shell: bash
+      env:
+        NEW_VERSION: ${{ inputs.new_version }}
+        OLD_VERSION: ${{ inputs.old_version }}
+        DOWNLOAD_URL: ${{ inputs.download_url }}
+        CASK_NAME: ${{ inputs.cask_name }}
+        NEW_VERSION_DISPLAY: ${{ inputs.new_version_display }}
+        NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
+        NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
+      run: |
+        set -euo pipefail
+        
+        # Fallback for DISPLAY_VERSION if empty
+        NEW_VERSION_DISPLAY="${NEW_VERSION_DISPLAY:-$NEW_VERSION}"
+        
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add "Casks/$CASK_NAME.rb" README.md
+        
+        # Function to map cask names to display names
+        get_display_name() {
+          case "$1" in
+            futu-niuniu) echo "Futu Niuniu" ;;
+            aliyundrive) echo "AliyunDrive" ;;
+            # Add more mappings as needed
+            *)
+              # Default: replace hyphens with spaces and capitalize each word
+              echo "$1" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1'
+              ;;
+          esac
+        }
+        
+        COMMIT_MSG="chore: update $(get_display_name "$CASK_NAME") to version ${NEW_VERSION}"
+        
+        # Determine SHA256 commit message
+        SHA256_MSG="- Updated SHA256 checksum"
+        if [[ -n "$NEW_SHA256_INTEL" && -n "$NEW_SHA256_ARM" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (arm64/intel)"
+        elif [[ -n "$NEW_SHA256_INTEL" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (intel)"
+        elif [[ -n "$NEW_SHA256_ARM" ]]; then
+          SHA256_MSG="- Updated SHA256 checksum (arm64)"
+        fi
+        
+        git commit \
+          -m "$COMMIT_MSG" \
+          -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
+          -m "$SHA256_MSG" \
+          -m "- Updated README.md version table (display ${NEW_VERSION_DISPLAY})" \
+          -m "- Source: ${DOWNLOAD_URL}" || exit 0
+        git push

@@ -1,0 +1,34 @@
+name: 'Check Concurrency'
+description: 'Checks if other instances of the same workflow are running'
+inputs:
+  workflow_name:
+    description: 'Name of the workflow to check'
+    required: true
+  github_token:
+    description: 'GitHub token for authentication'
+    required: true
+outputs:
+  running_conflict:
+    description: 'True if multiple updates are running'
+    value: ${{ steps.check.outputs.running_conflict }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check for running updates
+      id: check
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: |
+        echo "::group::Checking for running updates"
+        RUNNING_COUNT=$(gh run list --workflow="${{ inputs.workflow_name }}" --status=in_progress --limit=10 --json status --jq 'length')
+        echo "Found $RUNNING_COUNT running updates"
+        
+        if [[ "$RUNNING_COUNT" -gt 1 ]]; then
+          echo "::warning::Multiple updates are running, this might cause conflicts"
+          echo "running_conflict=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "running_conflict=false" >> "$GITHUB_OUTPUT"
+        fi
+        echo "::endgroup::"
