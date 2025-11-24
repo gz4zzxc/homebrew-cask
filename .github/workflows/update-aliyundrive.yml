@@ -55,25 +55,14 @@ jobs:
           page=$(curl -fsSL --compressed -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
           set +o pipefail
           # 双路解析：先从 CDN 直链提取，再回退到页面文本
-          echo "DEBUG: Page content matching aDrive:"
-          printf "%s" "$page" | grep "aDrive" || echo "DEBUG: No aDrive found in page"
-          
           cdn=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'https://cdn\.aliyundrive\.net/downloads/apps/desktop/aDrive-[0-9]+\.[0-9]+\.[0-9]+\.dmg' | head -n1 || true)
-          echo "DEBUG: cdn='$cdn'"
           if [[ -n "$cdn" ]]; then
             NEW_VERSION=$(printf "%s" "$cdn" | sed -E 's#.*/aDrive-([^/-]+)\.dmg.*#\1#')
-            echo "DEBUG: NEW_VERSION from cdn='$NEW_VERSION'"
           else
             NEW_VERSION=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'aDrive[._-]v?[0-9]+(\.[0-9]+)+' | head -n1 | sed -E 's/.*v?//' || true)
-            echo "DEBUG: NEW_VERSION from regex='$NEW_VERSION'"
           fi
           set -o pipefail
 
-          
-          echo "DEBUG: CURRENT_VERSION='$CURRENT_VERSION'"
-          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then echo "DEBUG: Versions are EQUAL"; else echo "DEBUG: Versions are NOT EQUAL"; fi
-          if [[ -z "$NEW_VERSION" ]]; then echo "DEBUG: NEW_VERSION is EMPTY"; else echo "DEBUG: NEW_VERSION is NOT EMPTY"; fi
-          
           # 如果页面解析失败或版本与当前相同，尝试 CDN 版本递增检测
           if [[ -z "${NEW_VERSION:-}" || "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
             echo "::warning::Page version detection failed or same as current, trying CDN version detection..."
