@@ -69,6 +69,8 @@ jobs:
           fi
           set -o pipefail
 
+          
+          echo "DEBUG: CURRENT_VERSION='$CURRENT_VERSION'"
           # 如果页面解析失败或版本与当前相同，尝试 CDN 版本递增检测
           if [[ -z "${NEW_VERSION:-}" || "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
             echo "::warning::Page version detection failed or same as current, trying CDN version detection..."
