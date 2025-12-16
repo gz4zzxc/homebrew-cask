@@ -55,7 +55,7 @@ brew upgrade --cask aliyundrive
 | 📈 富途牛牛 | `futu-niuniu` | 15.43.14208 | Universal | ✅ | [官网](https://www.futunn.com/) |
 | 💹 长桥Pro | `longbridge-pro` | 2.35.3 | ARM64 + Intel | ✅ | [官网](https://longbridge.com/desktop/zh-CN/) |
 | 📚 欧路词典 | `eudic` | 25.12.0 | Universal | ✅ | [官网](https://www.eudic.net/) |
-| 🎨 Adobe Downloader | `adobe-downloader` | 2.1.4 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
+| 🎨 Adobe Downloader | `adobe-downloader` | 2.1.5 | Universal | ✅ | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2025.2 | Universal | ✅ | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
 
 ## 🌟 特性说明
