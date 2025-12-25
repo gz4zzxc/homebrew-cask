@@ -2,12 +2,12 @@ name: Update Eudic Cask
 
 on:
   schedule:
-    - cron: "24 23 * * *"  # 北京时间 07:24
+    - cron: "24 23 * * *" # 北京时间 07:24
   workflow_dispatch: {}
 
 permissions:
   contents: write
-  actions: read      # 读取其他 workflow 状态
+  actions: read # 读取其他 workflow 状态
 
 concurrency:
   group: update-eudic
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Check new version
         id: check
-        continue-on-error: true  # 允许失败但不终止整个工作流
+        continue-on-error: true # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -euo pipefail
@@ -75,31 +75,31 @@ jobs:
           echo "::endgroup::"
 
           URL="https://static.eudic.net/pkg/eudicmac.dmg?v=${BUILD}"
-          
+
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
-          
+
           mkdir -p /tmp/cask-downloads
           curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/eudic.dmg
-          
+
           # 验证下载的文件
           if [[ ! -f /tmp/cask-downloads/eudic.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
-          
+
           # 检查文件大小
-          FILE_SIZE=$(stat -f%z /tmp/cask-downloads/eudic.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/eudic.dmg 2>/dev/null || echo "0")
-          
+          FILE_SIZE=$(stat -c%s /tmp/cask-downloads/eudic.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/eudic.dmg 2>/dev/null || echo "0")
+
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
             exit 1
           fi
-          
+
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(shasum -a 256 /tmp/cask-downloads/eudic.dmg | awk '{print $1}')
+          SHA=$(sha256sum /tmp/cask-downloads/eudic.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
@@ -115,17 +115,17 @@ jobs:
             echo "::error::New version is empty"
             exit 1
           fi
-          
+
           if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
             echo "::error::SHA256 is empty"
             exit 1
           fi
-          
+
           if [[ -z "${{ steps.check.outputs.new_version_display }}" ]]; then
             echo "::error::Version display is empty"
             exit 1
           fi
-          
+
           echo "::notice::All outputs validated successfully"
 
       # 保存下载缓存
