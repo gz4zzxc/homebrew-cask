@@ -104,7 +104,7 @@ jobs:
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
                   CONSECUTIVE_FAILURES=0  # 成功获取 200 响应时重置连续失败计数器
-                  break
+                  break 2
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_FAILURES++))
                   # 连续多次 404 说明该次版本段不存在，提前退出
