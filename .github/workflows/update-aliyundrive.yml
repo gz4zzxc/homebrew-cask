@@ -72,11 +72,15 @@ jobs:
             MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
             PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
 
+            # 安全边界：记录连续失败的次数
+            CONSECUTIVE_404=0
+            MAX_CONSECUTIVE_404=3
+
             # 首先尝试递增次版本号（因为从 6.8.7 -> 6.9.0 是次版本递增）
-            for minor_increment in {1..5}; do
+            for minor_increment in {1..2}; do
               TEST_MINOR=$((MINOR + minor_increment))
               # 对于新的次版本，从补丁版本 0 开始测试
-              for patch_version in {0..9}; do
+              for patch_version in {0..5}; do
                 TEST_VERSION="${MAJOR}.${TEST_MINOR}.${patch_version}"
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
@@ -84,13 +88,27 @@ jobs:
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
                   break 3
+                else
+                  # 检查是否是 404
+                  if curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -q "404"; then
+                    ((CONSECUTIVE_404++))
+                    # 连续多次 404 说明该次版本段不存在，提前退出
+                    if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                      echo "::warning::Detected continuous 404 errors ($CONSECUTIVE_404 times), stopping CDN detection"
+                      break 3
+                    fi
+                  else
+                    # 重置计数器（非 404 错误）
+                    CONSECUTIVE_404=0
+                  fi
                 fi
               done
             done
 
             # 如果次版本递增没找到新版本，再尝试递增当前版本的补丁版本
             if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-              for patch_increment in {1..10}; do
+              CONSECUTIVE_404=0  # 重置计数器
+              for patch_increment in {1..5}; do
                 TEST_PATCH=$((PATCH + patch_increment))
                 TEST_VERSION="${MAJOR}.${MINOR}.${TEST_PATCH}"
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
@@ -99,6 +117,17 @@ jobs:
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
                   break 2
+                else
+                  # 检查是否是 404
+                  if curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -q "404"; then
+                    ((CONSECUTIVE_404++))
+                    if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                      echo "::warning::Detected continuous 404 errors ($CONSECUTIVE_404 times), stopping CDN detection"
+                      break 2
+                    fi
+                  else
+                    CONSECUTIVE_404=0
+                  fi
                 fi
               done
             fi
