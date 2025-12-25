@@ -2,12 +2,12 @@ name: Update Catalyst Browse Cask
 
 on:
   schedule:
-    - cron: "48 23 * * *"  # 北京时间 07:48
+    - cron: "48 23 * * 1" # 每周一检查一次
   workflow_dispatch: {}
 
 permissions:
   contents: write
-  actions: read      # 读取其他 workflow 状态
+  actions: read # 读取其他 workflow 状态
 
 concurrency:
   group: update-catalyst-browse
@@ -41,7 +41,7 @@ jobs:
 
       - name: Check new version
         id: check
-        continue-on-error: true  # 允许失败但不终止整个工作流
+        continue-on-error: true # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -euo pipefail
@@ -72,29 +72,29 @@ jobs:
           echo "::endgroup::"
 
           URL="https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg"
-          
+
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
-          
+
           curl --retry 5 --retry-all-errors --retry-delay 2 -fSL \
             -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
             -H "Referer: https://www.sony.com/" \
             "$URL" -o /tmp/catalyst-browse.dmg
-          
+
           # 验证下载的文件
           if [[ ! -f /tmp/catalyst-browse.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
-          
+
           # 检查文件大小
           FILE_SIZE=$(stat -f%z /tmp/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/catalyst-browse.dmg 2>/dev/null || echo "0")
-          
+
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
             exit 1
           fi
-          
+
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
@@ -171,12 +171,12 @@ jobs:
             echo "::error::New version is empty"
             exit 1
           fi
-          
+
           if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
             echo "::error::SHA256 is empty"
             exit 1
           fi
-          
+
           echo "::notice::All outputs validated successfully"
 
       # 保存下载缓存

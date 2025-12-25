@@ -2,7 +2,7 @@ name: Update Longbridge Pro Cask
 
 on:
   schedule:
-    - cron: "18 0 * * *" # 北京时间 08:18
+    - cron: "18 0 */3 * *" # 每 3 天检查一次
   workflow_dispatch: {}
 
 permissions:

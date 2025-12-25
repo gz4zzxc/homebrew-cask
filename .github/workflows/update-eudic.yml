@@ -2,7 +2,7 @@ name: Update Eudic Cask
 
 on:
   schedule:
-    - cron: "24 23 * * *" # 北京时间 07:24
+    - cron: "24 23 */3 * *" # 每 3 天检查一次
   workflow_dispatch: {}
 
 permissions:
