@@ -85,19 +85,24 @@ jobs:
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 # 捕获 HTTP 状态码并重用，避免重复请求
-                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9] [0-9]{3}" | head -n1)
+                # 支持格式：HTTP/1.0, HTTP/1.1, HTTP/2
+                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12](\.[0-9])? [0-9]{3}" | head -n1)
 
-                # 当 curl 未能获取到 HTTP 头时，HTTP_STATUS 可能为空，提供清晰的错误信息
+                # 当 curl 未能获取到 HTTP 头或匹配失败时，HTTP_STATUS 可能为空
+                # 这种情况视为连续失败的一部分以保持安全边界
                 if [[ -z "$HTTP_STATUS" ]]; then
-                  echo "::warning::Failed to detect HTTP status for $TEST_URL (curl may have failed)"
-                  CONSECUTIVE_404=0
+                  echo "::warning::Failed to detect HTTP status for $TEST_URL (curl may have failed or returned an unsupported response)"
+                  ((CONSECUTIVE_404++))
+                  if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                    echo "::warning::Detected continuous failed/empty responses ($CONSECUTIVE_404 times), stopping CDN detection"
+                    break 3
+                  fi
                   continue
                 fi
 
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
-                  CONSECUTIVE_404=0  # 成功响应也重置计数器
                   break 3
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
@@ -122,19 +127,24 @@ jobs:
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 # 捕获 HTTP 状态码并重用，避免重复请求
-                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9] [0-9]{3}" | head -n1)
+                # 支持格式：HTTP/1.0, HTTP/1.1, HTTP/2
+                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12](\.[0-9])? [0-9]{3}" | head -n1)
 
-                # 当 curl 未能获取到 HTTP 头时，HTTP_STATUS 可能为空，提供清晰的错误信息
+                # 当 curl 未能获取到 HTTP 头或匹配失败时，HTTP_STATUS 可能为空
+                # 这种情况视为连续失败的一部分以保持安全边界
                 if [[ -z "$HTTP_STATUS" ]]; then
-                  echo "::warning::Failed to detect HTTP status for $TEST_URL (curl may have failed)"
-                  CONSECUTIVE_404=0
+                  echo "::warning::Failed to detect HTTP status for $TEST_URL (curl may have failed or returned an unsupported response)"
+                  ((CONSECUTIVE_404++))
+                  if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                    echo "::warning::Detected continuous failed/empty responses ($CONSECUTIVE_404 times), stopping CDN detection"
+                    break 2
+                  fi
                   continue
                 fi
 
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
-                  CONSECUTIVE_404=0  # 成功响应也重置计数器
                   break 2
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
