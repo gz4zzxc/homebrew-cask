@@ -95,7 +95,7 @@ jobs:
                   ((CONSECUTIVE_404++))
                   if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
                     echo "::warning::Detected continuous failed/empty responses ($CONSECUTIVE_404 times), stopping CDN detection"
-                    break 3
+                    break 2
                   fi
                   continue
                 fi
@@ -103,17 +103,21 @@ jobs:
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
-                  break 3
+                  break 2
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
                   # 连续多次 404 说明该次版本段不存在，提前退出
                   if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
                     echo "::warning::Detected continuous 404 errors ($CONSECUTIVE_404 times), stopping CDN detection"
-                    break 3
+                    break 2
                   fi
                 else
-                  # 重置计数器（非 404 错误）
-                  CONSECUTIVE_404=0
+                  # 非 200、非 404 的响应也视为失败，计入安全边界
+                  ((CONSECUTIVE_404++))
+                  if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                    echo "::warning::Detected continuous non-200 HTTP errors ($CONSECUTIVE_404 times), stopping CDN detection"
+                    break 2
+                  fi
                 fi
               done
             done
@@ -153,7 +157,12 @@ jobs:
                     break 2
                   fi
                 else
-                  CONSECUTIVE_404=0
+                  # 非 200、非 404 的响应也视为失败，计入安全边界
+                  ((CONSECUTIVE_404++))
+                  if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
+                    echo "::warning::Detected continuous non-200 HTTP errors ($CONSECUTIVE_404 times), stopping CDN detection"
+                    break 2
+                  fi
                 fi
               done
             fi
