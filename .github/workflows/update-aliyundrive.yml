@@ -85,11 +85,12 @@ jobs:
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 # 捕获 HTTP 状态码并重用，避免重复请求
-                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9]{3}" | head -n1)
+                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9] [0-9]{3}" | head -n1)
 
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
+                  CONSECUTIVE_404=0  # 成功响应也重置计数器
                   break 3
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
@@ -114,11 +115,12 @@ jobs:
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 # 捕获 HTTP 状态码并重用，避免重复请求
-                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9]{3}" | head -n1)
+                HTTP_STATUS=$(curl -fsSL -I -A "$UA" "$TEST_URL" 2>&1 | grep -oE "HTTP/[12]\.[0-9] [0-9]{3}" | head -n1)
 
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
+                  CONSECUTIVE_404=0  # 成功响应也重置计数器
                   break 2
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
