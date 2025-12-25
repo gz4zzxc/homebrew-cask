@@ -103,7 +103,8 @@ jobs:
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
-                  break 2
+                  CONSECUTIVE_404=0  # 成功获取 200 响应时重置连续失败计数器
+                  break
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
                   # 连续多次 404 说明该次版本段不存在，提前退出
@@ -141,7 +142,7 @@ jobs:
                   ((CONSECUTIVE_404++))
                   if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
                     echo "::warning::Detected continuous failed/empty responses ($CONSECUTIVE_404 times), stopping CDN detection"
-                    break 2
+                    break
                   fi
                   continue
                 fi
@@ -149,7 +150,8 @@ jobs:
                 if echo "$HTTP_STATUS" | grep -q "200"; then
                   echo "::notice::Found new version via CDN detection: $TEST_VERSION"
                   NEW_VERSION="$TEST_VERSION"
-                  break 2
+                  CONSECUTIVE_404=0  # 成功获取 200 响应时重置连续失败计数器
+                  break
                 elif echo "$HTTP_STATUS" | grep -q "404"; then
                   ((CONSECUTIVE_404++))
                   if [[ $CONSECUTIVE_404 -ge $MAX_CONSECUTIVE_404 ]]; then
