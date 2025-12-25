@@ -2,12 +2,12 @@ name: Update Adobe Downloader Cask
 
 on:
   schedule:
-    - cron: "36 23 * * *"  # 北京时间 07:36
+    - cron: "36 23 * * *" # 北京时间 07:36
   workflow_dispatch: {}
 
 permissions:
   contents: write
-  actions: read      # 读取其他 workflow 状态
+  actions: read # 读取其他 workflow 状态
 
 concurrency:
   group: update-adobe-downloader
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -43,7 +43,7 @@ jobs:
 
       - name: Check new version
         id: check
-        continue-on-error: true  # 允许失败但不终止整个工作流
+        continue-on-error: true # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -euo pipefail
@@ -52,7 +52,7 @@ jobs:
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
-          
+
           json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
           TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
@@ -74,31 +74,31 @@ jobs:
           echo "::endgroup::"
 
           URL="https://github.com/X1a0He/Adobe-Downloader/releases/download/${TAG}/Adobe.Downloader.dmg"
-          
+
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
-          
+
           # 并行下载以提高性能
           curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/adobe-downloader.dmg
-          
+
           # 验证下载的文件
           if [[ ! -f /tmp/adobe-downloader.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
-          
+
           # 检查文件大小
-          FILE_SIZE=$(stat -f%z /tmp/adobe-downloader.dmg 2>/dev/null || stat -c%s /tmp/adobe-downloader.dmg 2>/dev/null || echo "0")
-          
+          FILE_SIZE=$(stat -c%s /tmp/adobe-downloader.dmg 2>/dev/null || stat -f%z /tmp/adobe-downloader.dmg 2>/dev/null || echo "0")
+
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
             exit 1
           fi
-          
+
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(shasum -a 256 /tmp/adobe-downloader.dmg | awk '{print $1}')
+          SHA=$(sha256sum /tmp/adobe-downloader.dmg | awk '{print $1}')
 
           echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
@@ -113,12 +113,12 @@ jobs:
             echo "::error::New version is empty"
             exit 1
           fi
-          
+
           if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
             echo "::error::SHA256 is empty"
             exit 1
           fi
-          
+
           echo "::notice::All outputs validated successfully"
 
       # 保存下载缓存
