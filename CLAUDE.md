@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a personal Homebrew Cask Tap repository containing custom casks for macOS applications not available in the official Homebrew repository. The repository includes automated GitHub Actions workflows that check for and apply updates to cask versions daily.
+This is a personal Homebrew Cask Tap repository containing custom casks for macOS applications not available in the official Homebrew repository. The repository includes automated GitHub Actions workflows that check for and apply updates to cask versions periodically (frequency optimized based on app activity).
 
 ## Codebase Structure
 
@@ -49,7 +49,7 @@ Casks follow the Homebrew Cask format with:
 - Proper uninstall and zap directives for clean removal
 
 The GitHub Actions workflows automatically:
-1. Check for new versions daily
+1. Check for new versions periodically
 2. Download new versions to calculate SHA256 checksums
 3. Update cask files and README.md with new versions
 4. Commit and push changes with standardized commit messages
