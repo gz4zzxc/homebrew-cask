@@ -1,6 +1,6 @@
 cask "futu-niuniu" do
-  version "15.45.14418"
-  sha256 "4d5a0341a480285b3870f7eaea096a8c7b11b071dee0f85711b013ca5053609e"
+  version "15.44.14308"
+  sha256 "0826a89a2fa4af5e29f4460bfea1229061592cce9137a87b45aea9f5911355d2"
 
   url "https://softwaredownload.futunn.com/FTNN_desktop_#{version}_Website.dmg",
       verified: "softwaredownload.futunn.com/"
