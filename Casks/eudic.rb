@@ -1,5 +1,5 @@
 cask "eudic" do
-  version "25.12.0,1182"
+  version "26.1.1,1182"
   sha256 "612156bd967e743da21aa68fd674ba5898ef008b2411760119c0d68c7283e189"
 
   url "https://static.eudic.net/pkg/eudicmac.dmg?v=#{version.csv.second}",
