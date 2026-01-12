@@ -17,7 +17,7 @@ jobs:
   update:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # 检查是否有其他更新正在进行
       - name: Check for running updates
