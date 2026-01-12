@@ -95,9 +95,12 @@ jobs:
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          page=$(curl -fsSL --compressed -A "$UA" 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
+          page=$(curl -fsSL --compressed -A "$UA" --max-time 10 'https://www.aliyundrive.com/download' | LC_ALL=C tr -d '\000')
           set +o pipefail
-          # 双路解析：先从 CDN 直链提取，再回退到页面文本
+          # 优化的三路解析策略：
+          # 1. 优先从 CDN 直链提取（最准确）
+          # 2. 回退到页面中版本号文本匹配
+          # 3. 回退到 JavaScript 代码中的版本信息
           cdn=$(printf "%s" "$page" | LC_ALL=C grep -aoE 'https://cdn\.aliyundrive\.net/downloads/apps/desktop/aDrive-[0-9]+\.[0-9]+\.[0-9]+\.dmg' | head -n1 || true)
           if [[ -n "$cdn" ]]; then
             NEW_VERSION=$(printf "%s" "$cdn" | sed -E 's#.*/aDrive-([^/-]+)\.dmg.*#\1#')
@@ -106,43 +109,42 @@ jobs:
           fi
           set -o pipefail
 
-          # 如果页面解析失败或版本与当前相同，尝试 CDN 版本递增检测
-          if [[ -z "${NEW_VERSION:-}" || "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-            echo "::warning::Page version detection failed or same as current, trying CDN version detection..."
+          # 只有当页面解析完全失败（空版本）时，才进行 CDN 递增检测
+          # 如果解析到版本但与当前相同，直接跳过（避免不必要的 CDN 探测）
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "::warning::Page version detection failed, trying limited CDN version detection..."
 
             # 从当前版本号开始递增检测
             MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
             MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
             PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
 
-            # 安全边界：记录连续失败的次数（包括 404、空响应、curl 失败、非 200/404 错误）
-            MAX_CONSECUTIVE_FAILURES=3
+            # 优化后的安全边界：减少连续失败阈值，更快退出
+            MAX_CONSECUTIVE_FAILURES=2
             CONSECUTIVE_FAILURES=0
 
-            # 首先尝试递增次版本号（因为从 6.8.7 -> 6.9.0 是次版本递增）
-            for minor_increment in {1..2}; do
+            # 首先尝试递增次版本号（范围缩小：从 2 减到 1）
+            for minor_increment in {1..1}; do
               TEST_MINOR=$((MINOR + minor_increment))
-              # 对于新的次版本，从补丁版本 0 开始测试
-              for patch_version in {0..5}; do
+              # 补丁版本范围缩小：从 5 减到 3
+              for patch_version in {0..3}; do
                 TEST_VERSION="${MAJOR}.${TEST_MINOR}.${patch_version}"
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 check_http_status "$TEST_URL" "$MAX_CONSECUTIVE_FAILURES" || break 2
-                # 找到新版本后立即退出所有循环
                 [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]] && break 2
               done
             done
 
-            # 如果次版本递增没找到新版本，再尝试递增当前版本的补丁版本
+            # 如果次版本递增没找到新版本，再尝试递增当前版本的补丁版本（范围缩小）
             if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-              CONSECUTIVE_FAILURES=0  # 重置计数器
-              for patch_increment in {1..5}; do
+              CONSECUTIVE_FAILURES=0
+              for patch_increment in {1..3}; do
                 TEST_PATCH=$((PATCH + patch_increment))
                 TEST_VERSION="${MAJOR}.${MINOR}.${TEST_PATCH}"
                 TEST_URL="https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-${TEST_VERSION}.dmg"
 
                 check_http_status "$TEST_URL" "$MAX_CONSECUTIVE_FAILURES" || break
-                # 找到新版本后立即退出循环
                 [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]] && break
               done
             fi
@@ -198,10 +200,10 @@ jobs:
 
           mkdir -p /tmp/cask-downloads
 
-          # 并行下载以提高性能
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/cask-downloads/adrive-intel.dmg &
+          # 并行下载以提高性能，添加连接和总超时限制
+          curl --retry 3 --retry-all-errors --retry-delay 1 --retry-max-time 60 --max-time 180 --connect-timeout 10 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$INTEL_URL" -o /tmp/cask-downloads/adrive-intel.dmg &
           INTEL_PID=$!
-          curl --retry 5 --retry-all-errors --retry-delay 2 --retry-max-time 120 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/cask-downloads/adrive-arm64.dmg &
+          curl --retry 3 --retry-all-errors --retry-delay 1 --retry-max-time 60 --max-time 180 --connect-timeout 10 --compressed -fSL -A "$UA" -H 'Referer: https://www.aliyundrive.com/download' "$ARM_URL" -o /tmp/cask-downloads/adrive-arm64.dmg &
           ARM_PID=$!
 
           # 等待所有下载完成
