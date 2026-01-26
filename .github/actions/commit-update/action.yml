@@ -67,7 +67,7 @@ runs:
         fi
         
         if [[ -n "$NEW_SHA256_ARM" ]]; then
-          sed -i.bak "s/^  sha256 arm:.*$/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+          sed -i.bak "s/^  sha256 arm:   \".*\",/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
         
         if [[ -n "$NEW_SHA256_INTEL" ]]; then
