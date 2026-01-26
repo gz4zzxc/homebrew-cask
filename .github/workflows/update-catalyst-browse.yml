@@ -91,7 +91,7 @@ jobs:
           # 检查文件大小
           FILE_SIZE=$(stat -f%z /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || echo "0")
 
-          if [[ "$FILE_SIZE" -lt 1000000 ]]; then
+          if [[ "$FILE_SIZE" -lt 10000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
             exit 1
           fi

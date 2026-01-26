@@ -217,7 +217,7 @@ jobs:
           INTEL_SIZE=$(stat -c%s /tmp/cask-downloads/adrive-intel.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/adrive-intel.dmg 2>/dev/null || echo "0")
           ARM_SIZE=$(stat -c%s /tmp/cask-downloads/adrive-arm64.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/adrive-arm64.dmg 2>/dev/null || echo "0")
 
-          if [[ "$INTEL_SIZE" -lt 1000000 ]] || [[ "$ARM_SIZE" -lt 1000000 ]]; then
+          if [[ "$INTEL_SIZE" -lt 30000000 ]] || [[ "$ARM_SIZE" -lt 30000000 ]]; then
             echo "::error::Downloaded files are too small - possible corruption"
             exit 1
           fi
