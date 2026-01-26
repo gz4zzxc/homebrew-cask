@@ -272,7 +272,7 @@ jobs:
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
-        if: steps.check.outputs.update_needed == 'true' && steps.check.outputs.download_ok != 'false'
+        if: steps.check.outputs.update_needed == 'true'
         uses: ./.github/actions/commit-update
         with:
           cask_name: aliyundrive
