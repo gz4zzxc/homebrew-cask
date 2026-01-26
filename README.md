@@ -52,9 +52,9 @@ brew upgrade --cask aliyundrive
 | 应用名称               | Cask 名称          | 当前版本    | 架构支持      | 自动更新 | 官网/项目                                                           |
 | ---------------------- | ------------------ | ----------- | ------------- | -------- | ------------------------------------------------------------------- |
 | 🔥 阿里云盘             | `aliyundrive`      | 6.9.1       | ARM64 + Intel | ✅        | [官网](https://www.aliyundrive.com/)                                |
-| 📈 富途牛牛             | `futu-niuniu`      | 15.45.14408 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
-| 💹 长桥Pro              | `longbridge-pro`   | 2.35.4      | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/zh-CN/)                       |
-| 📚 欧路词典             | `eudic`            | 25.12.0     | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
+| 📈 富途牛牛             | `futu-niuniu` | 16.2.14708 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
+| 💹 长桥Pro              | `longbridge-pro` | 2.36.1 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/zh-CN/)                       |
+| 📚 欧路词典             | `eudic` | 26.1.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
 | 🎨 Adobe Downloader     | `adobe-downloader` | 2.2.0 | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse`  | 2025.2      | Universal     | ✅        | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
 
