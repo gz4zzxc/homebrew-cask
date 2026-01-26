@@ -78,7 +78,8 @@ runs:
         # Use a more robust sed pattern to handle potential special characters in version
         # Escape special characters in version string for sed
         ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[][\/&.*^$\\]/\\&/g')
-        sed -i.bak "s/| \`$CASK_NAME\` | [^|]* |/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md && rm README.md.bak
+        # Match cask name with flexible spacing, then replace the version column
+        sed -i.bak "s/| \`$CASK_NAME\`[[:space:]]*|[[:space:]]*[^|]*[[:space:]]*|/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md && rm README.md.bak
 
         echo "::notice::Cask file updated successfully"
         echo "::notice::README.md updated successfully"
