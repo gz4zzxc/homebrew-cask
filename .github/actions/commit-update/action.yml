@@ -100,24 +100,21 @@ runs:
     - name: Apply updates
       shell: bash
       env:
+        CASK_NAME: ${{ inputs.cask_name }}
         NEW_VERSION: ${{ inputs.new_version }}
         NEW_SHA256: ${{ inputs.new_sha256 }}
         NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
         NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
         DISPLAY_VERSION: ${{ inputs.new_version_display }}
-        CASK_NAME: ${{ inputs.cask_name }}
-        DISPLAY_NAME: ${{ inputs.display_name }}
-        OLD_VERSION: ${{ inputs.old_version }}
       run: |
         set -euo pipefail
-        
+
         # Fallback for DISPLAY_VERSION if empty
         DISPLAY_VERSION="${DISPLAY_VERSION:-$NEW_VERSION}"
-        
+
         # 记录更新摘要
         echo "::group::Update Summary"
         echo "Cask: $CASK_NAME"
-        echo "Old Version: $OLD_VERSION"
         echo "New Version: $NEW_VERSION"
         if [[ -n "$NEW_SHA256" ]]; then echo "SHA256: $NEW_SHA256"; fi
         if [[ -n "$NEW_SHA256_INTEL" ]]; then echo "Intel SHA256: $NEW_SHA256_INTEL"; fi
@@ -126,15 +123,15 @@ runs:
 
         # Update Cask file
         sed -i.bak "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
-        
+
         if [[ -n "$NEW_SHA256" ]]; then
           sed -i.bak "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
-        
+
         if [[ -n "$NEW_SHA256_ARM" ]]; then
           sed -i.bak "s/^  sha256 arm:   \".*\",/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
-        
+
         if [[ -n "$NEW_SHA256_INTEL" ]]; then
           sed -i.bak "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
         fi
@@ -164,29 +161,29 @@ runs:
     - name: Commit and push
       shell: bash
       env:
+        CASK_NAME: ${{ inputs.cask_name }}
+        DISPLAY_NAME: ${{ inputs.display_name }}
         NEW_VERSION: ${{ inputs.new_version }}
         OLD_VERSION: ${{ inputs.old_version }}
-        DOWNLOAD_URL: ${{ inputs.download_url }}
-        CASK_NAME: ${{ inputs.cask_name }}
         NEW_VERSION_DISPLAY: ${{ inputs.new_version_display }}
         NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
         NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
-        DISPLAY_NAME: ${{ inputs.display_name }}
+        DOWNLOAD_URL: ${{ inputs.download_url }}
       run: |
         set -euo pipefail
-        
+
         # Fallback for DISPLAY_VERSION if empty
         NEW_VERSION_DISPLAY="${NEW_VERSION_DISPLAY:-$NEW_VERSION}"
-        
+
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add "Casks/$CASK_NAME.rb" README.md
 
         # Use provided display name
         FINAL_DISPLAY_NAME="$DISPLAY_NAME"
-        
+
         COMMIT_MSG="chore: update $FINAL_DISPLAY_NAME to version ${NEW_VERSION}"
-        
+
         # Determine SHA256 commit message
         SHA256_MSG="- Updated SHA256 checksum"
         if [[ -n "$NEW_SHA256_INTEL" && -n "$NEW_SHA256_ARM" ]]; then
@@ -196,7 +193,7 @@ runs:
         elif [[ -n "$NEW_SHA256_ARM" ]]; then
           SHA256_MSG="- Updated SHA256 checksum (arm64)"
         fi
-        
+
         git commit \
           -m "$COMMIT_MSG" \
           -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
