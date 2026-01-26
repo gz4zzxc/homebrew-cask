@@ -14,6 +14,7 @@ cask "futu-niuniu" do
 
   zap trash: [
     "~/Library/Application Support/Futu",
+    "~/Library/Caches/com.futu.FutuNiuniu",
     "~/Library/Preferences/com.futu.FutuNiuniu.plist",
     "~/Library/Saved Application State/com.futu.FutuNiuniu.savedState",
   ]

@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache/restore@v4
         id: download-cache
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ runner.os }}-catalyst-browse-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-catalyst-browse-
@@ -76,19 +76,20 @@ jobs:
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
 
+          mkdir -p /tmp/cask-downloads
           curl --retry 5 --retry-all-errors --retry-delay 2 -fSL \
             -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
             -H "Referer: https://www.sony.com/" \
-            "$URL" -o /tmp/catalyst-browse.dmg
+            "$URL" -o /tmp/cask-downloads/catalyst-browse.dmg
 
           # 验证下载的文件
-          if [[ ! -f /tmp/catalyst-browse.dmg ]]; then
+          if [[ ! -f /tmp/cask-downloads/catalyst-browse.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
 
           # 检查文件大小
-          FILE_SIZE=$(stat -f%z /tmp/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/catalyst-browse.dmg 2>/dev/null || echo "0")
+          FILE_SIZE=$(stat -f%z /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || echo "0")
 
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
@@ -108,7 +109,7 @@ jobs:
           cleanup() { hdiutil detach "$MOUNTPOINT" -quiet || true; rm -rf "$WORKDIR" || true; }
           trap cleanup EXIT
 
-          hdiutil attach /tmp/catalyst-browse.dmg -nobrowse -mountpoint "$MOUNTPOINT" -quiet
+          hdiutil attach /tmp/cask-downloads/catalyst-browse.dmg -nobrowse -mountpoint "$MOUNTPOINT" -quiet
 
           PKG_PATH=$(find "$MOUNTPOINT" -maxdepth 1 -type f -name "*.pkg" -print -quit)
           if [[ -z "${PKG_PATH:-}" ]]; then
@@ -156,7 +157,7 @@ jobs:
           echo "::notice::Version validation passed - versions match"
           echo "::endgroup::"
 
-          SHA=$(shasum -a 256 /tmp/catalyst-browse.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 /tmp/cask-downloads/catalyst-browse.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
@@ -187,7 +188,7 @@ jobs:
           steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push

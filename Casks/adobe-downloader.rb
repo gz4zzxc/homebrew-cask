@@ -20,6 +20,7 @@ cask "adobe-downloader" do
 
   zap trash: [
     "~/Library/Application Support/Adobe Downloader",
+    "~/Library/Caches/com.x1a0he.Adobe-Downloader",
     "~/Library/Preferences/com.x1a0he.Adobe-Downloader.plist",
     "~/Library/Saved Application State/com.x1a0he.Adobe-Downloader.savedState",
   ]

@@ -24,6 +24,7 @@ cask "aliyundrive" do
 
   zap trash: [
     "~/Library/Application Support/aDrive",
+    "~/Library/Caches/com.alicloud.smartdrive",
     "~/Library/Preferences/com.alicloud.smartdrive.plist",
     "~/Library/Saved Application State/com.alicloud.smartdrive.savedState",
   ]

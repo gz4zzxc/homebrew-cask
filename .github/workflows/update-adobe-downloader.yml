@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache/restore@v4
         id: download-cache
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ runner.os }}-adobe-downloader-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-adobe-downloader-
@@ -79,16 +79,17 @@ jobs:
           echo "Downloading from: $URL"
 
           # 并行下载以提高性能
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/adobe-downloader.dmg
+          mkdir -p /tmp/cask-downloads
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/adobe-downloader.dmg
 
           # 验证下载的文件
-          if [[ ! -f /tmp/adobe-downloader.dmg ]]; then
+          if [[ ! -f /tmp/cask-downloads/adobe-downloader.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
 
           # 检查文件大小
-          FILE_SIZE=$(stat -c%s /tmp/adobe-downloader.dmg 2>/dev/null || stat -f%z /tmp/adobe-downloader.dmg 2>/dev/null || echo "0")
+          FILE_SIZE=$(stat -c%s /tmp/cask-downloads/adobe-downloader.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/adobe-downloader.dmg 2>/dev/null || echo "0")
 
           if [[ "$FILE_SIZE" -lt 1000000 ]]; then
             echo "::error::Downloaded file is too small - possible corruption"
@@ -98,7 +99,7 @@ jobs:
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(sha256sum /tmp/adobe-downloader.dmg | awk '{print $1}')
+          SHA=$(sha256sum /tmp/cask-downloads/adobe-downloader.dmg | awk '{print $1}')
 
           echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
@@ -129,7 +130,7 @@ jobs:
           steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
         with:
-          path: /tmp/*.dmg
+          path: /tmp/cask-downloads/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
