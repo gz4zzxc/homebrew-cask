@@ -44,7 +44,7 @@ jobs:
         continue-on-error: true # 允许失败但不终止整个工作流
         shell: bash
         run: |
-          set -xeuo pipefail
+          set -euo pipefail
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
           # HTTP 检测函数：检测 URL 可用性并更新连续失败计数器
