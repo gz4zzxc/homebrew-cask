@@ -116,22 +116,9 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add "Casks/$CASK_NAME.rb" README.md
-        
-        # Function to map cask names to display names (fallback)
-        get_display_name() {
-          case "$1" in
-            futu-niuniu) echo "Futu Niuniu" ;;
-            aliyundrive) echo "AliyunDrive" ;;
-            # Add more mappings as needed
-            *)
-              # Default: replace hyphens with spaces and capitalize each word
-              echo "$1" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1'
-              ;;
-          esac
-        }
-        
-        # Use provided display name or fallback to generated one
-        FINAL_DISPLAY_NAME="${DISPLAY_NAME:-$(get_display_name "$CASK_NAME")}"
+
+        # Use provided display name
+        FINAL_DISPLAY_NAME="$DISPLAY_NAME"
         
         COMMIT_MSG="chore: update $FINAL_DISPLAY_NAME to version ${NEW_VERSION}"
         
