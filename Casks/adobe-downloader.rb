@@ -5,7 +5,7 @@ cask "adobe-downloader" do
   url "https://github.com/X1a0He/Adobe-Downloader/releases/download/#{version}/Adobe.Downloader.dmg",
       verified: "github.com/X1a0He/Adobe-Downloader/"
   name "Adobe Downloader"
-  desc "Tool to download Adobe apps (Creative Cloud alternative)"
+  desc "Tool to download and install Adobe Creative Cloud applications"
   homepage "https://github.com/X1a0He/Adobe-Downloader"
 
   livecheck do
