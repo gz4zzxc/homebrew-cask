@@ -6,7 +6,7 @@ inputs:
     required: true
   display_name:
     description: 'Display name for the cask (e.g., AliyunDrive)'
-    required: false
+    required: true
   new_version:
     description: 'New version string'
     required: true
@@ -32,6 +32,71 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        CASK_NAME: ${{ inputs.cask_name }}
+        DISPLAY_NAME: ${{ inputs.display_name }}
+        NEW_VERSION: ${{ inputs.new_version }}
+        OLD_VERSION: ${{ inputs.old_version }}
+        DOWNLOAD_URL: ${{ inputs.download_url }}
+        NEW_SHA256: ${{ inputs.new_sha256 }}
+        NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
+        NEW_SHA256_ARM: ${{ inputs.new_sha256_arm }}
+      run: |
+        set -euo pipefail
+
+        # Validate required inputs
+        if [[ -z "$CASK_NAME" ]]; then
+          echo "::error::cask_name is required but empty"
+          exit 1
+        fi
+
+        if [[ -z "$DISPLAY_NAME" ]]; then
+          echo "::error::display_name is required but empty"
+          exit 1
+        fi
+
+        if [[ -z "$NEW_VERSION" ]]; then
+          echo "::error::new_version is required but empty"
+          exit 1
+        fi
+
+        if [[ -z "$OLD_VERSION" ]]; then
+          echo "::error::old_version is required but empty"
+          exit 1
+        fi
+
+        if [[ -z "$DOWNLOAD_URL" ]]; then
+          echo "::error::download_url is required but empty"
+          exit 1
+        fi
+
+        # Validate at least one SHA256 is provided
+        if [[ -z "$NEW_SHA256" ]] && [[ -z "$NEW_SHA256_INTEL" ]] && [[ -z "$NEW_SHA256_ARM" ]]; then
+          echo "::error::At least one SHA256 checksum (new_sha256, new_sha256_intel, or new_sha256_arm) must be provided"
+          exit 1
+        fi
+
+        # If using arch-specific SHA256, both must be provided
+        if [[ -n "$NEW_SHA256_INTEL" ]] && [[ -z "$NEW_SHA256_ARM" ]]; then
+          echo "::error::new_sha256_arm is required when new_sha256_intel is provided"
+          exit 1
+        fi
+
+        if [[ -n "$NEW_SHA256_ARM" ]] && [[ -z "$NEW_SHA256_INTEL" ]]; then
+          echo "::error::new_sha256_intel is required when new_sha256_arm is provided"
+          exit 1
+        fi
+
+        # Validate cask file exists
+        if [[ ! -f "Casks/$CASK_NAME.rb" ]]; then
+          echo "::error::Cask file Casks/$CASK_NAME.rb not found"
+          exit 1
+        fi
+
+        echo "::notice::All inputs validated successfully"
+
     - name: Apply updates
       shell: bash
       env:
