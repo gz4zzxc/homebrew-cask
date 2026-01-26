@@ -109,6 +109,15 @@ runs:
       run: |
         set -euo pipefail
 
+        # Cross-platform sed function (macOS/BSD vs GNU sed)
+        safe_sed() {
+          if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "$@"
+          else
+            sed -i "$@"
+          fi
+        }
+
         # Fallback for DISPLAY_VERSION if empty
         DISPLAY_VERSION="${DISPLAY_VERSION:-$NEW_VERSION}"
 
@@ -122,18 +131,18 @@ runs:
         echo "::endgroup::"
 
         # Update Cask file
-        sed -i.bak "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+        safe_sed "s/^  version \".*\"/  version \"$NEW_VERSION\"/" "Casks/$CASK_NAME.rb"
 
         if [[ -n "$NEW_SHA256" ]]; then
-          sed -i.bak "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+          safe_sed "s/^  sha256 \".*\"/  sha256 \"$NEW_SHA256\"/" "Casks/$CASK_NAME.rb"
         fi
 
         if [[ -n "$NEW_SHA256_ARM" ]]; then
-          sed -i.bak "s/^  sha256 arm:   \".*\",/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+          safe_sed "s/^  sha256 arm:   \".*\",/  sha256 arm:   \"$NEW_SHA256_ARM\",/" "Casks/$CASK_NAME.rb"
         fi
 
         if [[ -n "$NEW_SHA256_INTEL" ]]; then
-          sed -i.bak "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb" && rm "Casks/$CASK_NAME.rb.bak"
+          safe_sed "s/^         intel: \".*\"/         intel: \"$NEW_SHA256_INTEL\"/" "Casks/$CASK_NAME.rb"
         fi
 
         # Update README
@@ -141,7 +150,7 @@ runs:
         # Escape special characters in version string for sed
         ESCAPED_VERSION=$(echo "$DISPLAY_VERSION" | sed 's/[][\/&.*^$\\]/\\&/g')
         # Match cask name with flexible spacing, then replace the version column
-        sed -i.bak "s/| \`$CASK_NAME\`[[:space:]]*|[[:space:]]*[^|]*[[:space:]]*|/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md && rm README.md.bak
+        safe_sed "s/| \`$CASK_NAME\`[[:space:]]*|[[:space:]]*[^|]*[[:space:]]*|/| \`$CASK_NAME\` | $ESCAPED_VERSION |/" README.md
 
         echo "::notice::Cask file updated successfully"
         echo "::notice::README.md updated successfully"
