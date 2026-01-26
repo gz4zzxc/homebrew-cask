@@ -16,8 +16,6 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 
@@ -53,7 +51,7 @@ jobs:
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          json=$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" "$API")
+          json=$(curl -fsSL -H "Accept: application/vnd.github+json" "$API")
           TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
