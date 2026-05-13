@@ -35,6 +35,9 @@ brew install --cask adobe-downloader
 
 # 安装 Sony Catalyst Browse
 brew install --cask catalyst-browse
+
+# 安装 QuickOutline
+brew install --cask quick-outline
 ```
 
 ### 3. 更新应用
@@ -57,6 +60,7 @@ brew upgrade --cask aliyundrive
 | 📚 欧路词典             | `eudic` | 26.2.2 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
 | 🎨 Adobe Downloader     | `adobe-downloader` | 2.2.0 | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse`  | 2025.2      | Universal     | ✅        | [官网](https://www.sony.com/electronics/support/articles/CCCT03000) |
+| 📄 QuickOutline         | `quick-outline`    | 2.3.0       | Universal     | ✅        | [GitHub](https://github.com/ririv/QuickOutline)                    |
 
 ## 🌟 特性说明
 
