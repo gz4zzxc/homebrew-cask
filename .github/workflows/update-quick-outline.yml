@@ -1,0 +1,145 @@
+name: Update QuickOutline Cask
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # 每周一早上 6 点检查一次
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: update-quick-outline
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for running updates
+        id: check-running
+        uses: ./.github/actions/check-concurrency
+        with:
+          workflow_name: "Update QuickOutline Cask"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore download cache
+        uses: actions/cache/restore@v4
+        id: download-cache
+        with:
+          path: /tmp/cask-downloads/*.dmg
+          key: ${{ runner.os }}-quick-outline-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-quick-outline-
+
+      - name: Check new version
+        id: check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/ririv/QuickOutline/releases/latest"
+          CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/quick-outline.rb)
+
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
+
+          json=$(curl -fsSL -H "Accept: application/vnd.github+json" "$API")
+          TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+
+          if [[ -z "${TAG:-}" ]]; then
+            echo "::warning::Failed to parse latest GitHub tag, skipping."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Latest tag: $TAG"
+
+          if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::New version available: $TAG"
+          echo "::endgroup::"
+
+          URL="https://github.com/ririv/QuickOutline/releases/download/${TAG}/QuickOutline-${TAG}-macos.dmg"
+
+          echo "::group::Downloading file"
+          echo "Downloading from: $URL"
+
+          mkdir -p /tmp/cask-downloads
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/quick-outline.dmg
+
+          if [[ ! -f /tmp/cask-downloads/quick-outline.dmg ]]; then
+            echo "::error::Download failed - file not found"
+            exit 1
+          fi
+
+          FILE_SIZE=$(stat -c%s /tmp/cask-downloads/quick-outline.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/quick-outline.dmg 2>/dev/null || echo "0")
+
+          if [[ "$FILE_SIZE" -lt 10000000 ]]; then
+            echo "::error::Downloaded file is too small - possible corruption"
+            exit 1
+          fi
+
+          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
+          echo "::endgroup::"
+
+          SHA=$(sha256sum /tmp/cask-downloads/quick-outline.dmg | awk '{print $1}')
+
+          echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+
+          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
+            echo "::error::SHA256 is empty"
+            exit 1
+          fi
+
+          echo "::notice::All outputs validated successfully"
+
+      - name: Save download cache
+        if: |
+          always() && 
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/cask-downloads/*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/commit-update
+        with:
+          cask_name: quick-outline
+          display_name: "QuickOutline"
+          new_version: ${{ steps.check.outputs.new_version }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_sha256: ${{ steps.check.outputs.new_sha256 }}
+          download_url: "https://github.com/ririv/QuickOutline/releases/latest"
+
+      - name: Final status report
+        if: always()
+        uses: ./.github/actions/final-report
+        with:
+          job_status: ${{ job.status }}
+          update_needed: ${{ steps.check.outputs.update_needed }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_version: ${{ steps.check.outputs.new_version }}
+          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
+          workflow_name: "Update QuickOutline Cask"
