@@ -31,7 +31,7 @@ jobs:
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
       # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
       - name: Restore download cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         id: download-cache
         with:
           path: /tmp/cask-downloads/*.dmg
@@ -266,7 +266,7 @@ jobs:
           always() && 
           steps.download-cache.outputs.cache-hit != 'true' &&
           steps.check.outputs.update_needed == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/cask-downloads/*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}

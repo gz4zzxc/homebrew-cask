@@ -27,7 +27,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore download cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         id: download-cache
         with:
           path: /tmp/cask-downloads/longbridge-pro-*.dmg
@@ -122,7 +122,7 @@ jobs:
           always() &&
           steps.download-cache.outputs.cache-hit != 'true' &&
           steps.check.outputs.update_needed == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: /tmp/cask-downloads/longbridge-pro-*.dmg
           key: ${{ steps.download-cache.outputs.cache-primary-key }}
