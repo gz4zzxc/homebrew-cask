@@ -1,13 +1,12 @@
 cask "catalyst-browse" do
-  version "2025.2"
-  sha256 "24bf06358ea7b9c359b934599786a5f9b97e970b7ebbcc3685d019c2c2bbadf1"
+  version "2025.3,4a649a24a5"
+  sha256 "b1895ad381f606b7388a822cb313e336dcc708d083d443148f0dc1bfdc7e5875"
 
-  url "https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg",
-      verified: "di.update.sony.net/"
+  url "https://di.update.sony.net/NEX/#{version.csv.second}/Catalyst_Browse.dmg?version=#{version.csv.first}"
   name "Sony Catalyst Browse"
   name "Catalyst Browse"
   desc "Professional media browser and metadata viewer for video production workflows"
-  homepage "https://www.sony.com/electronics/support/articles/CCCT03000"
+  homepage "https://www.sony.net/catalyst"
 
   # livecheck do
   #   url "https://www.sony.com/electronics/support/articles/CCCT03000"
@@ -15,9 +14,9 @@ cask "catalyst-browse" do
   # end
 
   auto_updates true
-  depends_on macos: ">= :monterey"
+  depends_on macos: :monterey
 
-  pkg "Catalyst Browse #{version}.pkg"
+  pkg "Catalyst Browse #{version.csv.first}.pkg"
 
   postflight do
     # Create application support directory if it doesn't exist

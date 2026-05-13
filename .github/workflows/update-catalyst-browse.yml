@@ -45,33 +45,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PAGE_URL="https://www.sony.com/electronics/support/articles/CCCT03000"
+          DOWNLOAD_ENTRY_URL="https://support.d-imaging.sony.co.jp/disoft_DL/CatalystBrowse_DL/mac?fm=en"
           CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          page=$(curl -fsSL "$PAGE_URL")
-          NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'Catalyst[[:space:]]+Browse[[:space:]]+[0-9]+(\.[0-9]+)*' | head -n1 | awk '{print $3}')
-
-          if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "::warning::Failed to parse Catalyst Browse version, skipping."
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          URL=$(curl -fsSLI "$DOWNLOAD_ENTRY_URL" | awk 'BEGIN{IGNORECASE=1} /^location:/ {gsub(/\r/, "", $2); print $2}' | tail -n1)
+          if [[ -z "${URL:-}" ]]; then
+            echo "::error::Failed to resolve Catalyst Browse download URL"
+            exit 1
           fi
 
-          echo "Latest version: $NEW_VERSION"
-
-          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-            echo "::notice::Already at latest version: $CURRENT_VERSION"
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          URL_TOKEN=$(printf "%s" "$URL" | sed -E 's#^https://di\.update\.sony\.net/NEX/([^/]+)/Catalyst_Browse\.dmg$#\1#')
+          if [[ -z "${URL_TOKEN:-}" || "$URL_TOKEN" == "$URL" ]]; then
+            echo "::error::Failed to extract version token from download URL: $URL"
+            exit 1
           fi
 
-          echo "::notice::New version available: $NEW_VERSION"
+          echo "Resolved download URL: $URL"
+          echo "Resolved URL token: $URL_TOKEN"
           echo "::endgroup::"
-
-          URL="https://di.update.sony.net/NEX/b579a2667c/Catalyst_Browse.dmg"
 
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
@@ -101,7 +95,7 @@ jobs:
 
           # 🔒 重要：验证下载文件中实际包含的版本号
           echo "::group::Validating actual package version"
-          echo "Expected version from website: $NEW_VERSION"
+          echo "Expected URL token: $URL_TOKEN"
 
           # 挂载 DMG 并检查实际 PKG 版本
           MOUNTPOINT=$(mktemp -d /tmp/catalyst-browse-mnt-XXXX)
@@ -117,33 +111,21 @@ jobs:
             exit 1
           fi
 
-          # 展开 PKG 以读取版本（兼容 distribution/flat 两种包格式）
-          EXPANDED="$WORKDIR/expanded"
-          if ! pkgutil --expand "$PKG_PATH" "$EXPANDED" 2>/dev/null; then
-            echo "::error::Failed to expand PKG for version validation"
-            exit 1
-          fi
+          ACTUAL_VERSION=$(basename "$PKG_PATH" | sed -E 's/^Catalyst Browse ([0-9]+(\.[0-9]+)*)\.pkg$/\1/')
 
-          # 解析版本：优先从 Distribution 获取，其次从 PackageInfo 获取
-          if [[ -f "$EXPANDED/Distribution" ]]; then
-            ACTUAL_VERSION=$(grep -Eo 'version="[^"]+"' "$EXPANDED/Distribution" | head -1 | sed -E 's/version="([^"]+)"/\1/')
-          else
-            PKGINFO=$(find "$EXPANDED" -name PackageInfo -type f -print -quit)
-            if [[ -n "${PKGINFO:-}" ]]; then
-              ACTUAL_VERSION=$(grep -Eo 'version="[^"]+"' "$PKGINFO" | head -1 | sed -E 's/version="([^"]+)"/\1/')
-            fi
-          fi
-
-          if [[ -z "${ACTUAL_VERSION:-}" ]]; then
-            echo "::error::Failed to extract version from PKG contents"
+          if [[ -z "${ACTUAL_VERSION:-}" || "$ACTUAL_VERSION" == "$(basename "$PKG_PATH")" ]]; then
+            echo "::error::Failed to extract version from PKG filename: $(basename "$PKG_PATH")"
             exit 1
           fi
 
           echo "Actual version in PKG: $ACTUAL_VERSION"
 
+          NEW_VERSION="$ACTUAL_VERSION,$URL_TOKEN"
+          echo "Latest version: $NEW_VERSION"
+
           # 版本规范化：去除末尾无意义的 .0 以避免 2025.2 vs 2025.2.0 误报
           normalize_version() { echo "$1" | sed -E 's/(\.0)+$//'; }
-          EXPECTED_NORM=$(normalize_version "$NEW_VERSION")
+          EXPECTED_NORM=$(normalize_version "${NEW_VERSION%%,*}")
           ACTUAL_NORM=$(normalize_version "$ACTUAL_VERSION")
 
           if [[ "$ACTUAL_NORM" != "$EXPECTED_NORM" ]]; then
@@ -157,9 +139,18 @@ jobs:
           echo "::notice::Version validation passed - versions match"
           echo "::endgroup::"
 
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::New version available: $NEW_VERSION"
+
           SHA=$(shasum -a 256 /tmp/cask-downloads/catalyst-browse.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_version_display=${NEW_VERSION%%,*}" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
@@ -198,6 +189,7 @@ jobs:
           cask_name: catalyst-browse
           display_name: "Catalyst Browse"
           new_version: ${{ steps.check.outputs.new_version }}
+          new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256: ${{ steps.check.outputs.new_sha256 }}
           download_url: "https://www.sony.com/electronics/support/articles/CCCT03000"
