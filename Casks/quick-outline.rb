@@ -2,8 +2,7 @@ cask "quick-outline" do
   version "2.3.0"
   sha256 "c06140a66615e04dc6c3ac2301db734e000d4425d48ce16911c849a2393ac034"
 
-  url "https://github.com/ririv/QuickOutline/releases/download/#{version}/QuickOutline-#{version}-macos.dmg",
-      verified: "github.com/ririv/QuickOutline/"
+  url "https://github.com/ririv/QuickOutline/releases/download/#{version}/QuickOutline-#{version}-macos.dmg"
   name "QuickOutline"
   name "PDF目录编辑器"
   desc "PDF 目录/书签编辑工具，支持添加、编辑和导出 PDF 书签"
@@ -15,7 +14,7 @@ cask "quick-outline" do
   end
 
   auto_updates true
-  depends_on macos: :high_sierra
+  depends_on :macos
 
   app "QuickOutline.app"
 
