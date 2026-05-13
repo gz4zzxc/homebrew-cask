@@ -114,7 +114,7 @@ jobs:
 
       - name: Save download cache
         if: |
-          always() && 
+          always() &&
           steps.download-cache.outputs.cache-hit != 'true' &&
           steps.check.outputs.update_needed == 'true'
         uses: actions/cache/save@v4
