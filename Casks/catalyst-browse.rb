@@ -19,22 +19,25 @@ cask "catalyst-browse" do
   pkg "Catalyst Browse #{version.csv.first}.pkg"
 
   postflight do
-    # Create application support directory if it doesn't exist
-    support_dir = "#{Dir.home}/Library/Application Support/Catalyst Browse"
-    system_command "/bin/mkdir", args: ["-p", support_dir]
-
-    # Try to prevent first-run tutorial by creating multiple marker files
-    %w[
+    support_dirs = [
+      "#{Dir.home}/Library/Application Support/Catalyst Browse",
+      "#{Dir.home}/Library/Application Support/Sony/Catalyst Browse/#{version.csv.first}",
+    ]
+    marker_files = %w[
       .tutorial_shown
       .first_launch_done
       .welcome_shown
       tutorial_completed
-    ].each do |file|
-      system_command "/usr/bin/touch", args: ["#{support_dir}/#{file}"]
+    ]
+
+    support_dirs.each do |support_dir|
+      system_command "/bin/mkdir", args: ["-p", support_dir]
+      marker_files.each do |file|
+        system_command "/usr/bin/touch", args: ["#{support_dir}/#{file}"]
+      end
     end
 
-    # Set comprehensive preferences to disable first-run behavior
-    {
+    first_run_preferences = {
       "FirstLaunch"       => "false",
       "ShowTutorial"      => "false",
       "WelcomeShown"      => "true",
@@ -43,8 +46,17 @@ cask "catalyst-browse" do
       "ShowWelcome"       => "false",
       "InitialSetupDone"  => "true",
       "HasLaunchedBefore" => "true",
-    }.each do |key, value|
-      system_command "/usr/bin/defaults", args: ["write", "com.sony.CatalystBrowse", key, "-bool", value]
+    }
+    preference_domains = %w[
+      com.sony.SonyCreativeSoftware.Browse
+      com.sony.Catalyst
+      com.sony.CatalystBrowse
+    ]
+
+    preference_domains.each do |domain|
+      first_run_preferences.each do |key, value|
+        system_command "/usr/bin/defaults", args: ["write", domain, key, "-bool", value]
+      end
     end
   end
 
@@ -52,9 +64,12 @@ cask "catalyst-browse" do
 
   zap trash: [
     "~/Library/Application Support/Catalyst Browse",
+    "~/Library/Application Support/Sony/Catalyst Browse",
     "~/Library/Caches/com.sony.CatalystBrowse",
     "~/Library/Logs/Catalyst Browse",
+    "~/Library/Preferences/com.sony.Catalyst.plist",
     "~/Library/Preferences/com.sony.CatalystBrowse.plist",
+    "~/Library/Preferences/com.sony.SonyCreativeSoftware.Browse.plist",
     "~/Library/Saved Application State/com.sony.CatalystBrowse.savedState",
   ]
 
