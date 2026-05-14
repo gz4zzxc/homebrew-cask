@@ -75,13 +75,11 @@ cask "catalyst-browse" do
 
   caveats do
     <<~EOS
-      Sony Catalyst Browse may open a tutorial webpage on first launch despite
-      preventive measures. If this happens:
-      1. Simply close the browser tab/window
-      2. The tutorial should not appear on subsequent launches
-
-      This behavior is from Sony's application and cannot be completely prevented
-      during installation.
+      First-run tutorial is automatically suppressed when installed via brew.
+      If you installed manually (via DMG/pkg) and the tutorial opens, run:
+        defaults write com.sony.SonyCreativeSoftware.Browse ShowTutorial -bool false
+        defaults write com.sony.Catalyst ShowTutorial -bool false
+        defaults write com.sony.CatalystBrowse ShowTutorial -bool false
     EOS
   end
 end
