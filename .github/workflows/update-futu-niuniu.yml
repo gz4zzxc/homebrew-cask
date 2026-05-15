@@ -50,13 +50,22 @@ jobs:
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          # 解析下载页中的直链文件名获取版本
-          page=$(curl -fsSL 'https://www.futunn.com/download/mac') || page=""
-          if [[ -z "$page" ]]; then
-            page=$(curl -fsSL 'https://www.futunn.com/download') || true
-          fi
+          USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-          NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
+          # The download page no longer exposes the direct DMG URL. Use Apple's
+          # lookup API for the Mac App Store listing, then verify the matching
+          # website DMG exists by downloading it below.
+          lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
+          NEW_VERSION=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
+
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download/mac') || page=""
+            if [[ -z "$page" ]]; then
+              page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download') || true
+            fi
+
+            NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
+          fi
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "::warning::Failed to parse Futu version, skipping."
@@ -81,7 +90,7 @@ jobs:
           echo "Downloading from: $URL"
 
           mkdir -p /tmp/cask-downloads
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/futu-niuniu.dmg
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL -A "$USER_AGENT" "$URL" -o /tmp/cask-downloads/futu-niuniu.dmg
 
           # 验证下载的文件
           if [[ ! -f /tmp/cask-downloads/futu-niuniu.dmg ]]; then
