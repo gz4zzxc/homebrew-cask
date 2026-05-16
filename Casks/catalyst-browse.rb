@@ -1,6 +1,6 @@
 cask "catalyst-browse" do
-  version "2025.3,4a649a24a5"
-  sha256 "b1895ad381f606b7388a822cb313e336dcc708d083d443148f0dc1bfdc7e5875"
+  version "2026.1,XIe238f15b"
+  sha256 "04f6eeb44cb7325f89ceba24ab50af1412dd126762494f07816dfd28b10ed930"
 
   url "https://di.update.sony.net/NEX/#{version.csv.second}/Catalyst_Browse.dmg?version=#{version.csv.first}"
   name "Sony Catalyst Browse"
