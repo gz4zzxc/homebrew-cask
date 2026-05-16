@@ -76,10 +76,17 @@ cask "catalyst-browse" do
   caveats do
     <<~EOS
       First-run tutorial is automatically suppressed when installed via brew.
-      If you installed manually (via DMG/pkg) and the tutorial opens, run:
-        defaults write com.sony.SonyCreativeSoftware.Browse ShowTutorial -bool false
-        defaults write com.sony.Catalyst ShowTutorial -bool false
-        defaults write com.sony.CatalystBrowse ShowTutorial -bool false
+      If you installed manually (via DMG/pkg), run this before first launch:
+        for domain in com.sony.SonyCreativeSoftware.Browse com.sony.Catalyst com.sony.CatalystBrowse; do
+          defaults write "$domain" FirstLaunch -bool false
+          defaults write "$domain" ShowTutorial -bool false
+          defaults write "$domain" WelcomeShown -bool true
+          defaults write "$domain" TutorialCompleted -bool true
+          defaults write "$domain" FirstRun -bool false
+          defaults write "$domain" ShowWelcome -bool false
+          defaults write "$domain" InitialSetupDone -bool true
+          defaults write "$domain" HasLaunchedBefore -bool true
+        done
     EOS
   end
 end
