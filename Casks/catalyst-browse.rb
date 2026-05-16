@@ -18,48 +18,6 @@ cask "catalyst-browse" do
 
   pkg "Catalyst Browse #{version.csv.first}.pkg"
 
-  postflight do
-    support_dirs = [
-      "#{Dir.home}/Library/Application Support/Catalyst Browse",
-      "#{Dir.home}/Library/Application Support/Sony/Catalyst Browse/#{version.csv.first}",
-    ]
-    marker_files = %w[
-      .tutorial_shown
-      .first_launch_done
-      .welcome_shown
-      tutorial_completed
-    ]
-
-    support_dirs.each do |support_dir|
-      system_command "/bin/mkdir", args: ["-p", support_dir]
-      marker_files.each do |file|
-        system_command "/usr/bin/touch", args: ["#{support_dir}/#{file}"]
-      end
-    end
-
-    first_run_preferences = {
-      "FirstLaunch"       => "false",
-      "ShowTutorial"      => "false",
-      "WelcomeShown"      => "true",
-      "TutorialCompleted" => "true",
-      "FirstRun"          => "false",
-      "ShowWelcome"       => "false",
-      "InitialSetupDone"  => "true",
-      "HasLaunchedBefore" => "true",
-    }
-    preference_domains = %w[
-      com.sony.SonyCreativeSoftware.Browse
-      com.sony.Catalyst
-      com.sony.CatalystBrowse
-    ]
-
-    preference_domains.each do |domain|
-      first_run_preferences.each do |key, value|
-        system_command "/usr/bin/defaults", args: ["write", domain, key, "-bool", value]
-      end
-    end
-  end
-
   uninstall pkgutil: "com.sony.SonyCreativeSoftware.Browse"
 
   zap trash: [
@@ -72,21 +30,4 @@ cask "catalyst-browse" do
     "~/Library/Preferences/com.sony.SonyCreativeSoftware.Browse.plist",
     "~/Library/Saved Application State/com.sony.CatalystBrowse.savedState",
   ]
-
-  caveats do
-    <<~EOS
-      First-run tutorial is automatically suppressed when installed via brew.
-      If you installed manually (via DMG/pkg), run this before first launch:
-        for domain in com.sony.SonyCreativeSoftware.Browse com.sony.Catalyst com.sony.CatalystBrowse; do
-          defaults write "$domain" FirstLaunch -bool false
-          defaults write "$domain" ShowTutorial -bool false
-          defaults write "$domain" WelcomeShown -bool true
-          defaults write "$domain" TutorialCompleted -bool true
-          defaults write "$domain" FirstRun -bool false
-          defaults write "$domain" ShowWelcome -bool false
-          defaults write "$domain" InitialSetupDone -bool true
-          defaults write "$domain" HasLaunchedBefore -bool true
-        done
-    EOS
-  end
 end

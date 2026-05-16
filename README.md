@@ -62,15 +62,6 @@ brew upgrade --cask aliyundrive
 | 🎬 Sony Catalyst Browse | `catalyst-browse`  | 2026.1      | Universal     | ✅        | [官网](https://www.sony.net/catalyst)                               |
 | 📄 QuickOutline         | `quick-outline`    | 2.3.0       | Universal     | ✅        | [GitHub](https://github.com/ririv/QuickOutline)                    |
 
-## 🌟 特性说明
-
-### 🎬 Sony Catalyst Browse
-
-本仓库提供的 `catalyst-browse` Cask 包含以下增强功能：
-
-- **自动跳过教程**：安装过程中会自动配置偏好设置并创建标记文件，以屏蔽首次启动时强制显示的教程网页和欢迎界面。
-- **静默配置**：通过 `postflight` 脚本自动写入 `com.sony.CatalystBrowse` 域的配置，无需用户手动干预。
-
 ## 🔄 自动更新机制
 
 本仓库的所有 cask 都配置了自动更新机制：
