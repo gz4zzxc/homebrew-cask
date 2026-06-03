@@ -27,6 +27,12 @@ jobs:
           workflow_name: "Update Futu Niuniu Cask"
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Puppeteer
+        id: setup-puppeteer
+        run: |
+          npm install --no-save puppeteer-core 2>&1 | tail -1
+          echo "CHROME_PATH=$(which google-chrome || which chromium || echo '/usr/bin/google-chrome')" >> "$GITHUB_ENV"
+
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
       # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
@@ -41,7 +47,7 @@ jobs:
 
       - name: Check new version
         id: check
-        continue-on-error: true # 允许失败但不终止整个工作流
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -52,18 +58,43 @@ jobs:
 
           USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-          # The download page no longer exposes the direct DMG URL. Use Apple's
-          # lookup API for the Mac App Store listing, then verify the matching
-          # website DMG exists by downloading it below.
-          lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
-          NEW_VERSION=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
+          # 优先通过 Puppeteer 渲染页面获取版本号（页面为 Vue SPA，curl 拿不到版本）
+          NEW_VERSION=""
+          if [[ -n "${CHROME_PATH:-}" && -x "$CHROME_PATH" ]]; then
+            NEW_VERSION=$(node -e "
+              const p = require('puppeteer-core');
+              (async () => {
+                try {
+                  const b = await p.launch({
+                    executablePath: '$CHROME_PATH',
+                    args: ['--headless', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+                  });
+                  const page = await b.newPage();
+                  await page.goto('https://www.futunn.com/download/mac', { waitUntil: 'networkidle', timeout: 20000 });
+                  const desc = await page.\$eval('meta[name=\"description\"]', el => el.content);
+                  const m = desc.match(/Ver\.\s*([\d.]+)/);
+                  console.log(m ? m[1] : '');
+                  await b.close();
+                } catch(e) {
+                  process.exit(1);
+                }
+              })();
+            ") || true
+          fi
 
+          # 回退：从 App Store 接口获取版本号
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "::warning::Puppeteer failed, falling back to App Store API"
+            lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
+            NEW_VERSION=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
+          fi
+
+          # 最后回退：尝试从下载页面静态 HTML 中查找版本号
           if [[ -z "${NEW_VERSION:-}" ]]; then
             page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download/mac') || page=""
             if [[ -z "$page" ]]; then
               page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download') || true
             fi
-
             NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
           fi
 
@@ -92,13 +123,11 @@ jobs:
           mkdir -p /tmp/cask-downloads
           curl --retry 5 --retry-all-errors --retry-delay 2 -fSL -A "$USER_AGENT" "$URL" -o /tmp/cask-downloads/futu-niuniu.dmg
 
-          # 验证下载的文件
           if [[ ! -f /tmp/cask-downloads/futu-niuniu.dmg ]]; then
             echo "::error::Download failed - file not found"
             exit 1
           fi
 
-          # 检查文件大小
           FILE_SIZE=$(stat -c%s /tmp/cask-downloads/futu-niuniu.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/futu-niuniu.dmg 2>/dev/null || echo "0")
 
           if [[ "$FILE_SIZE" -lt 30000000 ]]; then
