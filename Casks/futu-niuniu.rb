@@ -1,6 +1,6 @@
 cask "futu-niuniu" do
-  version "16.17.16208"
-  sha256 "a67b9b7f75f1fd76a1309a43ec28c780468772432ae5276c6c5ab87476220e1b"
+  version "16.18.16308"
+  sha256 "7acc4e360486cbe37f825f811659df8e8228022b0681382e93e9c7930472403f"
 
   url "https://softwaredownload.futunn.com/FTNN_desktop_#{version}_Website.dmg"
   name "Futu Niuniu"

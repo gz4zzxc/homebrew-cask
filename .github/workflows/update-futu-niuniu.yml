@@ -31,7 +31,14 @@ jobs:
         id: setup-puppeteer
         run: |
           npm install --no-save puppeteer-core 2>&1 | tail -1
-          echo "CHROME_PATH=$(which google-chrome || which chromium || echo '/usr/bin/google-chrome')" >> "$GITHUB_ENV"
+          # Try multiple common Chrome paths
+          for path in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
+            if [[ -x "$path" ]]; then
+              echo "CHROME_PATH=$path" >> "$GITHUB_ENV"
+              echo "Found Chrome at: $path"
+              break
+            fi
+          done
 
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
@@ -61,32 +68,39 @@ jobs:
           # 优先通过 Puppeteer 渲染页面获取版本号（页面为 Vue SPA，curl 拿不到版本）
           NEW_VERSION=""
           if [[ -n "${CHROME_PATH:-}" && -x "$CHROME_PATH" ]]; then
-            NEW_VERSION=$(node -e "
-              const p = require('puppeteer-core');
-              (async () => {
-                try {
-                  const b = await p.launch({
-                    executablePath: '$CHROME_PATH',
-                    args: ['--headless', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
-                  });
-                  const page = await b.newPage();
-                  await page.goto('https://www.futunn.com/download/mac', { waitUntil: 'networkidle', timeout: 20000 });
-                  const desc = await page.\$eval('meta[name=\"description\"]', el => el.content);
-                  const m = desc.match(/Ver\.\s*([\d.]+)/);
-                  console.log(m ? m[1] : '');
-                  await b.close();
-                } catch(e) {
-                  process.exit(1);
-                }
-              })();
-            ") || true
+            NEW_VERSION=$(node --input-type=module -e '
+              import p from "puppeteer-core";
+              try {
+                const b = await p.launch({
+                  executablePath: "'"$CHROME_PATH"'",
+                  args: ["--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"]
+                });
+                const page = await b.newPage();
+                await page.goto("https://www.futunn.com/download/mac", { waitUntil: "networkidle", timeout: 30000 });
+                const desc = await page.$eval("meta[name=\"description\"]", el => el.content);
+                const m = desc.match(/Ver\.\s*([\d.]+)/);
+                console.log(m ? m[1] : "");
+                await b.close();
+              } catch(e) {
+                console.error("Puppeteer error:", e.message);
+                process.exit(1);
+              }
+            ') || true
           fi
 
           # 回退：从 App Store 接口获取版本号
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "::warning::Puppeteer failed, falling back to App Store API"
             lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
-            NEW_VERSION=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
+            APP_STORE_VER=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
+            # Only use App Store version if it's higher than current
+            if [[ -n "${APP_STORE_VER:-}" ]]; then
+              if [[ "$(printf "%s\n%s" "$CURRENT_VERSION" "$APP_STORE_VER" | sort -V | tail -1)" == "$APP_STORE_VER" ]]; then
+                NEW_VERSION="$APP_STORE_VER"
+              else
+                echo "::notice::App Store version ($APP_STORE_VER) is not newer than current ($CURRENT_VERSION)"
+              fi
+            fi
           fi
 
           # 最后回退：尝试从下载页面静态 HTML 中查找版本号
@@ -95,11 +109,14 @@ jobs:
             if [[ -z "$page" ]]; then
               page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download') || true
             fi
-            NEW_VERSION=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
+            STATIC_VER=$(printf "%s" "$page" | grep -Eo 'FTNN_desktop_[0-9]+(\.[0-9]+)+_Website\.dmg' | head -n1 | sed -E 's/.*FTNN_desktop_([0-9.]+)_Website\.dmg/\1/')
+            if [[ -n "${STATIC_VER:-}" && "$(printf "%s\n%s" "$CURRENT_VERSION" "$STATIC_VER" | sort -V | tail -1)" == "$STATIC_VER" ]]; then
+              NEW_VERSION="$STATIC_VER"
+            fi
           fi
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "::warning::Failed to parse Futu version, skipping."
+            echo "::warning::Failed to find a newer Futu version, skipping."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
