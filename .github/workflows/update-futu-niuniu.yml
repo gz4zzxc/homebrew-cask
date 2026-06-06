@@ -27,18 +27,11 @@ jobs:
           workflow_name: "Update Futu Niuniu Cask"
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Puppeteer
-        id: setup-puppeteer
+      - name: Setup Playwright
+        id: setup-playwright
         run: |
-          npm install --no-save puppeteer-core 2>&1 | tail -1
-          # Try multiple common Chrome paths
-          for path in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser /snap/bin/chromium; do
-            if [[ -x "$path" ]]; then
-              echo "CHROME_PATH=$path" >> "$GITHUB_ENV"
-              echo "Found Chrome at: $path"
-              break
-            fi
-          done
+          npm install --no-save playwright 2>&1 | tail -1
+          npx playwright install --with-deps chromium 2>&1 | tail -3
 
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
@@ -65,32 +58,36 @@ jobs:
 
           USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-          # 优先通过 Puppeteer 渲染页面获取版本号（页面为 Vue SPA，curl 拿不到版本）
+          # 优先通过 Playwright 渲染页面获取版本号（页面为 Vue SPA，curl 拿不到版本）
           NEW_VERSION=""
-          if [[ -n "${CHROME_PATH:-}" && -x "$CHROME_PATH" ]]; then
-            NEW_VERSION=$(node --input-type=module -e '
-              import p from "puppeteer-core";
-              try {
-                const b = await p.launch({
-                  executablePath: "'"$CHROME_PATH"'",
-                  args: ["--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--disable-setuid-sandbox"]
-                });
-                const page = await b.newPage();
-                await page.goto("https://www.futunn.com/download/mac", { waitUntil: "networkidle", timeout: 30000 });
-                const desc = await page.$eval("meta[name=\"description\"]", el => el.content);
-                const m = desc.match(/Ver\.\s*([\d.]+)/);
-                console.log(m ? m[1] : "");
-                await b.close();
-              } catch(e) {
-                console.error("Puppeteer error:", e.message);
-                process.exit(1);
-              }
-            ') || true
+          echo "::group::Playwright version detection"
+          PW_OUTPUT=$(node --input-type=module -e '
+            import { chromium } from "playwright";
+            try {
+              const b = await chromium.launch({
+                args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+              });
+              const page = await b.newPage();
+              await page.goto("https://www.futunn.com/download/mac", { waitUntil: "networkidle", timeout: 30000 });
+              const desc = await page.$eval("meta[name=\"description\"]", el => el.content);
+              const m = desc.match(/Ver\.\s*([\d.]+)/);
+              console.log(m ? m[1] : "");
+              await b.close();
+            } catch(e) {
+              console.error("Playwright error:", e.message);
+              process.exit(1);
+            }
+          ' 2>&1) || true
+          if echo "$PW_OUTPUT" | head -1 | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            NEW_VERSION=$(echo "$PW_OUTPUT" | head -1)
+            echo "Playwright detected version: $NEW_VERSION"
+          else
+            echo "::warning::Playwright failed: $(echo "$PW_OUTPUT" | tail -1)"
           fi
-
+          echo "::endgroup::"
           # 回退：从 App Store 接口获取版本号
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "::warning::Puppeteer failed, falling back to App Store API"
+            echo "::warning::Playwright failed, falling back to App Store API"
             lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
             APP_STORE_VER=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
             # Only use App Store version if it's higher than current
