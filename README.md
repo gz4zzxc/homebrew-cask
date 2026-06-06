@@ -114,16 +114,11 @@ brew upgrade --cask aliyundrive
 
 ## 📋 系统要求
 
-- **macOS**: 10.13 (High Sierra) 或更高版本
+- **macOS**: 10.15 (Catalina) 或更高版本
 - **Homebrew**: 最新版本
 - **架构支持**:
   - ✅ Apple Silicon (M1/M2/M3)
   - ✅ Intel x86_64
-
-## 🤝 贡献说明
-
-> **个人自用仓库不接受贡献**
->
 
 ## 🔗 相关链接
 

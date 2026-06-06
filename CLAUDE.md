@@ -24,6 +24,9 @@ brew audit --cask Casks/{app-name}.rb
 
 # Run Homebrew style check
 brew style Casks/{app-name}.rb
+
+# Check for new versions
+brew livecheck --cask {app-name}
 ```
 
 ### Manual Version Updates

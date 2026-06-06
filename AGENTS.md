@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-This is a personal Homebrew Cask tap. Contributions are rare but welcome when aligned with the repository’s scope and automation.
+This is a personal Homebrew Cask tap.
 
 ## Project Structure & Module Organization
 
