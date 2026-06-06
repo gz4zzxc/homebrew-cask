@@ -14,7 +14,7 @@ cask "quick-outline" do
   end
 
   auto_updates true
-  depends_on :macos
+  depends_on macos: :catalina
 
   app "QuickOutline.app"
 
