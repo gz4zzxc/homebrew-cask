@@ -22,7 +22,7 @@ cask "quick-outline" do
     "~/Library/Application Support/QuickOutline",
     "~/Library/Caches/QuickOutline",
     "~/Library/Logs/QuickOutline",
-    "~/Library/Preferences/QuickOutline",
+    "~/Library/Preferences/com.ririv.quickoutline.plist",
     "~/Library/Saved Application State/QuickOutline.savedState",
   ]
 end
