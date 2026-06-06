@@ -14,7 +14,7 @@ cask "adobe-downloader" do
   end
 
   auto_updates true
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "Adobe Downloader.app"
 
