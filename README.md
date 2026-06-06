@@ -125,10 +125,6 @@ brew upgrade --cask aliyundrive
 > **个人自用仓库不接受贡献**
 >
 
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
 ## 🔗 相关链接
 
 - [Homebrew 官网](https://brew.sh/)
