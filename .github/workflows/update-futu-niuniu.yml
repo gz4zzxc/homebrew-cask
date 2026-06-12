@@ -58,8 +58,10 @@ jobs:
 
           USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-          # 优先通过 Playwright 渲染页面获取版本号（页面为 Vue SPA，curl 拿不到版本）
+          # 多来源版本号检测：Playwright 渲染 > CDN 探针 > App Store > 静态 HTML
           NEW_VERSION=""
+
+          # ============ 1. Playwright 渲染检测（页面是 Vue SPA） ============
           echo "::group::Playwright version detection"
           PW_OUTPUT=$(node --input-type=module -e '
             import { chromium } from "playwright";
@@ -68,29 +70,88 @@ jobs:
                 args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
               });
               const page = await b.newPage();
-              await page.goto("https://www.futunn.com/download/mac", { waitUntil: "networkidle", timeout: 30000 });
-              const desc = await page.$eval("meta[name=\"description\"]", el => el.content);
-              const m = desc.match(/Ver\.\s*([\d.]+)/);
-              console.log(m ? m[1] : "");
+              await page.goto("https://www.futunn.com/download/mac", { waitUntil: "domcontentloaded", timeout: 20000 });
+              // 等待 SPA 渲染出版本号文本（不要等 networkidle——页面有实时行情推送）
+              await page.waitForFunction(() => document.body.innerText.includes("Ver."), { timeout: 10000 });
+              await new Promise(r => setTimeout(r, 2000)); // 额外等 2s 让 SPA 完成渲染
+
+              const versions = new Set();
+
+              // 来源 1: meta description
+              try {
+                const desc = await page.$eval("meta[name=\"description\"]", el => el.content);
+                const m = desc.match(/Ver\.\s*([\d.]+)/);
+                if (m) versions.add(m[1]);
+              } catch (_) {}
+
+              // 来源 2: 页面 body 中 "最新版本：Ver.X.Y.Z"
+              try {
+                const bodyText = await page.evaluate(() => document.body.innerText);
+                const m = bodyText.match(/最新版本[：:]\s*Ver\.\s*([\d.]+)/);
+                if (m) versions.add(m[1]);
+              } catch (_) {}
+
+              // 来源 3: 页面中所有 Ver.X.Y.Z 文本，取最高版本
+              try {
+                const items = await page.evaluate(() => {
+                  const text = document.body.innerText;
+                  return [...text.matchAll(/Ver\.\s*([\d.]+)/g)].map(m => m[1]);
+                });
+                for (const v of items) versions.add(v);
+              } catch (_) {}
+
+              // 输出所有找到的版本，按 semver 排序取最高
+              const sorted = [...versions].sort((a, b) => {
+                const pa = a.split(".").map(Number);
+                const pb = b.split(".").map(Number);
+                for (let i = 0; i < 3; i++) {
+                  if (pa[i] !== pb[i]) return pb[i] - pa[i];
+                }
+                return 0;
+              });
+              console.log(sorted.length > 0 ? sorted[0] : "");
+              if (sorted.length > 1) console.log("Found versions: " + sorted.join(", "));
               await b.close();
             } catch(e) {
               console.error("Playwright error:", e.message);
               process.exit(1);
             }
           ' 2>&1) || true
-          if echo "$PW_OUTPUT" | head -1 | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            NEW_VERSION=$(echo "$PW_OUTPUT" | head -1)
+          PW_VERSION=$(echo "$PW_OUTPUT" | head -1)
+          if [[ -n "${PW_VERSION:-}" && "$PW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            NEW_VERSION="$PW_VERSION"
             echo "Playwright detected version: $NEW_VERSION"
           else
             echo "::warning::Playwright failed: $(echo "$PW_OUTPUT" | tail -1)"
           fi
           echo "::endgroup::"
-          # 回退：从 App Store 接口获取版本号
+
+          # ============ 2. CDN 探针：在当前版本基础上 probe +1 级版本 ============
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "::warning::Playwright failed, falling back to App Store API"
+            echo "::group::CDN probe"
+            # 解析当前版本
+            IFS='.' read -r MAJ MIN BUILD <<< "$CURRENT_VERSION"
+            # 从 build+1 开始尝试，最多 probe 10 个版本
+            for offset in $(seq 1 10); do
+              TRY_VER="${MAJ}.${MIN}.$((BUILD + offset))"
+              URL="https://softwaredownload.futunn.com/FTNN_desktop_${TRY_VER}_Website.dmg"
+              HTTP_CODE=$(curl -sI -o /dev/null -w "%{http_code}" --max-time 5 "$URL" 2>/dev/null || echo "000")
+              if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "302" ]]; then
+                NEW_VERSION="$TRY_VER"
+                echo "CDN probe found version: $NEW_VERSION (http $HTTP_CODE)"
+                break
+              fi
+              echo "Probe $TRY_VER → $HTTP_CODE"
+            done
+            echo "::endgroup::"
+          fi
+
+          # ============ 3. 回退：App Store 接口 ============
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "::group::App Store API fallback"
+            echo "::warning::Playwright + CDN probe both failed, falling back to App Store API"
             lookup=$(curl -fsSL 'https://itunes.apple.com/lookup?id=6502630894&country=hk') || lookup=""
             APP_STORE_VER=$(printf "%s" "$lookup" | grep -Eo '"version":"[0-9]+(\.[0-9]+)+"' | head -n1 | sed -E 's/.*"version":"([0-9.]+)".*/\1/')
-            # Only use App Store version if it's higher than current
             if [[ -n "${APP_STORE_VER:-}" ]]; then
               if [[ "$(printf "%s\n%s" "$CURRENT_VERSION" "$APP_STORE_VER" | sort -V | tail -1)" == "$APP_STORE_VER" ]]; then
                 NEW_VERSION="$APP_STORE_VER"
@@ -98,10 +159,12 @@ jobs:
                 echo "::notice::App Store version ($APP_STORE_VER) is not newer than current ($CURRENT_VERSION)"
               fi
             fi
+            echo "::endgroup::"
           fi
 
-          # 最后回退：尝试从下载页面静态 HTML 中查找版本号
+          # ============ 4. 最后回退：静态 HTML 中查找 DMG 链接 ============
           if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "::group::Static HTML fallback"
             page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download/mac') || page=""
             if [[ -z "$page" ]]; then
               page=$(curl -fsSL -A "$USER_AGENT" 'https://www.futunn.com/download') || true
@@ -110,6 +173,7 @@ jobs:
             if [[ -n "${STATIC_VER:-}" && "$(printf "%s\n%s" "$CURRENT_VERSION" "$STATIC_VER" | sort -V | tail -1)" == "$STATIC_VER" ]]; then
               NEW_VERSION="$STATIC_VER"
             fi
+            echo "::endgroup::"
           fi
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
