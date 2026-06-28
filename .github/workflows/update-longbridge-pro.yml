@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -91,8 +91,8 @@ jobs:
           done
           echo "::endgroup::"
 
-          ARM_SHA=$(sha256sum /tmp/cask-downloads/longbridge-pro-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
-          INTEL_SHA=$(sha256sum /tmp/cask-downloads/longbridge-pro-${NEW_VERSION}-mac-x64.dmg | awk '{print $1}')
+          ARM_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-pro-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
+          INTEL_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-pro-${NEW_VERSION}-mac-x64.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"

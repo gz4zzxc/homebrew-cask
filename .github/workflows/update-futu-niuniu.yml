@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -31,7 +31,7 @@ jobs:
         id: setup-playwright
         run: |
           npm install --no-save playwright 2>&1 | tail -1
-          npx playwright install --with-deps chromium 2>&1 | tail -3
+          npx playwright install chromium 2>&1 | tail -3
 
       # 优化的下载缓存策略
       # 只缓存下载的 DMG 文件，避免重复下载相同版本
@@ -216,7 +216,7 @@ jobs:
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(sha256sum /tmp/cask-downloads/futu-niuniu.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 /tmp/cask-downloads/futu-niuniu.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"

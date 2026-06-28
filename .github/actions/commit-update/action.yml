@@ -167,6 +167,15 @@ runs:
         fi
         grep "\`$CASK_NAME\`" README.md | cat
 
+    - name: Validate with brew
+      shell: bash
+      env:
+        CASK_NAME: ${{ inputs.cask_name }}
+      run: |
+        set -euo pipefail
+        brew style "Casks/$CASK_NAME.rb"
+        brew audit --cask --strict "Casks/$CASK_NAME.rb"
+
     - name: Commit and push
       shell: bash
       env:
@@ -191,7 +200,7 @@ runs:
         # Use provided display name
         FINAL_DISPLAY_NAME="$DISPLAY_NAME"
 
-        COMMIT_MSG="chore: update $FINAL_DISPLAY_NAME to version ${NEW_VERSION}"
+        COMMIT_MSG="cask ${CASK_NAME}: update to ${NEW_VERSION}"
 
         # Determine SHA256 commit message
         SHA256_MSG="- Updated SHA256 checksum"

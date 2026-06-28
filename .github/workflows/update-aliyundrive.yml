@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -225,8 +225,8 @@ jobs:
           echo "::notice::Files downloaded successfully - Intel: ${INTEL_SIZE} bytes, ARM: ${ARM_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA_INTEL=$(sha256sum /tmp/cask-downloads/adrive-intel.dmg | awk '{print $1}')
-          SHA_ARM=$(sha256sum /tmp/cask-downloads/adrive-arm64.dmg | awk '{print $1}')
+          SHA_INTEL=$(shasum -a 256 /tmp/cask-downloads/adrive-intel.dmg | awk '{print $1}')
+          SHA_ARM=$(shasum -a 256 /tmp/cask-downloads/adrive-arm64.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 

@@ -2,9 +2,9 @@ cask "adobe-downloader" do
   version "3.1.0"
   sha256 "5a402946fc2aee56d9d8dc7eb3d038e8521ee75de8e5af4c8c2edcf02ea79843"
 
-  url "https://github.com/X1a0He/Adobe-Downloader/releases/download/#{version}/Adobe.Downloader.dmg",
-      verified: "github.com/X1a0He/Adobe-Downloader/"
+  url "https://github.com/X1a0He/Adobe-Downloader/releases/download/#{version}/Adobe.Downloader.dmg"
   name "Adobe Downloader"
+  name "Adobe 下载器"
   desc "Tool to download and install Adobe Creative Cloud applications"
   homepage "https://github.com/X1a0He/Adobe-Downloader"
 

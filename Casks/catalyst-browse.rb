@@ -8,10 +8,10 @@ cask "catalyst-browse" do
   desc "Professional media browser and metadata viewer for video production workflows"
   homepage "https://www.sony.net/catalyst"
 
-  # livecheck do
-  #   url "https://www.sony.com/electronics/support/articles/CCCT03000"
-  #   regex(/Catalyst\s+Browse\s+(\d+(?:\.\d+)+)/i)
-  # end
+  livecheck do
+    url "https://www.sony.com/electronics/support/articles/CCCT03000"
+    regex(/Catalyst\s+Browse\s+(\d+(?:\.\d+)+)/i)
+  end
 
   auto_updates true
   depends_on macos: :monterey

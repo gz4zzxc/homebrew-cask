@@ -21,6 +21,7 @@ This is a personal Homebrew Cask tap.
 - Ruby, 2‑space indentation; keep lines concise and readable.
 - File name = cask token; lowercase, hyphen‑separated (e.g., `longbridge-pro.rb`).
 - Recommended stanza order: `version`, `sha256`, `url` (+ `verified:`/`user_agent:` as needed), `name`, `desc`, `homepage`, `livecheck`, `auto_updates`, `depends_on`, artifact(s) (`app`/`pkg`), `zap`, `caveats`.
+- `livecheck` is a required stanza per the official Cask-Cookbook spec. `no_autobump!` is reserved for official Homebrew taps and cannot be used here; always provide a working `livecheck` block, even if best-effort.
 - Use `arch` and per‑arch `sha256` when binaries differ; avoid `:latest` unless truly necessary.
 - Keep `desc` short and factual; include localized `name` when helpful.
 
@@ -28,7 +29,7 @@ This is a personal Homebrew Cask tap.
 
 - Run both: `brew style` and `brew audit --strict` on modified casks.
 - Perform an end‑to‑end install/uninstall locally; verify the app starts and `zap` paths are accurate.
-- Prefer vendor, HTTPS, and stable URLs; always supply `verified:` for GitHub/CDN sources.
+- Prefer vendor, HTTPS, and stable URLs. Add `verified:` only when the URL domain differs from the homepage domain (e.g., `cdn.example.net` vs `example.com`); same‑organisation subdomains (e.g., `download.example.com` vs `www.example.com`) and `github.com` URLs do not need `verified:`.
 
 ## Commit & Pull Request Guidelines
 

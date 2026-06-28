@@ -1,0 +1,6 @@
+.DS_Store
+*.dmg
+*.pkg
+*.zip
+*.tgz
+/tmp/

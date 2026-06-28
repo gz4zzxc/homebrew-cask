@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -99,7 +99,7 @@ jobs:
           echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
           echo "::endgroup::"
 
-          SHA=$(sha256sum /tmp/cask-downloads/eudic.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 /tmp/cask-downloads/eudic.dmg | awk '{print $1}')
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
