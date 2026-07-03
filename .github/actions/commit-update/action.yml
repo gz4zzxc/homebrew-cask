@@ -177,7 +177,8 @@ runs:
         # Homebrew requires cask names (not file paths) for brew audit/style.
         # The CI checkout is not at Homebrew's tap directory, so we symlink it
         # so that Homebrew can discover the cask by fully-qualified name.
-        TAP_NAME=$(git remote get-url origin | sed -E 's|^https://github.com/||; s|^git@github.com:||; s|\.git$||')
+        # Handle both HTTPS (including token-based) and SSH remote URLs.
+        TAP_NAME=$(git remote get-url origin | sed -E 's|.*github.com[:/]||; s|\.git$||')
         TAP_DIR="$(brew --repository)/Library/Taps/${TAP_NAME}"
 
         if [[ -d "$TAP_DIR" && ! -L "$TAP_DIR" ]]; then
@@ -185,6 +186,9 @@ runs:
         fi
         mkdir -p "$(dirname "$TAP_DIR")"
         ln -sf "$(pwd)" "$TAP_DIR"
+
+        # Trust the tap so brew audit/style can load casks from it
+        brew trust "$TAP_NAME"
 
         brew style "${TAP_NAME}/${CASK_NAME}"
         brew audit --cask --strict "${TAP_NAME}/${CASK_NAME}"
