@@ -2,8 +2,7 @@ cask "eudic" do
   version "26.5.0,1206"
   sha256 "c7b4981233e368a699528765bc7daec6461433b7c225402777e5834cf0088da5"
 
-  url "https://static.eudic.net/pkg/eudicmac.dmg?v=#{version.csv.second}",
-      verified: "static.eudic.net/"
+  url "https://static.eudic.net/pkg/eudicmac.dmg?v=#{version.csv.second}"
   name "Eudic"
   name "欧路词典"
   desc "Dictionary and translation application"
