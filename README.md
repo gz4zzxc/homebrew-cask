@@ -12,10 +12,19 @@
 
 ## 快速开始
 
-### 1. 添加此 tap
+### 1. 添加并信任此 tap
+
+Homebrew 6.0+ 对非官方 tap 启用了 [Tap Trust](https://docs.brew.sh/Tap-Trust)：需要先信任，短名称安装才会加载本仓库的 cask 定义。
 
 ```bash
 brew tap gz4zzxc/homebrew-cask
+brew trust gz4zzxc/cask
+```
+
+也可以不预先 trust 整个 tap，直接用完全限定名安装（只会 trust 该 cask）：
+
+```bash
+brew install --cask gz4zzxc/cask/futu-niuniu
 ```
 
 ### 2. 安装应用

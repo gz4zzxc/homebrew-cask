@@ -5,7 +5,7 @@ cask "quick-outline" do
   url "https://github.com/ririv/QuickOutline/releases/download/#{version}/QuickOutline-#{version}-macos.dmg"
   name "QuickOutline"
   name "PDF目录编辑器"
-  desc "PDF 目录/书签编辑工具，支持添加、编辑和导出 PDF 书签"
+  desc "PDF outline and bookmark editor"
   homepage "https://github.com/ririv/QuickOutline"
 
   livecheck do

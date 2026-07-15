@@ -5,7 +5,7 @@ cask "futu-niuniu" do
   url "https://softwaredownload.futunn.com/FTNN_desktop_#{version}_Website.dmg"
   name "Futu Niuniu"
   name "富途牛牛"
-  desc "富途证券官方交易软件，支持港股、美股、A股交易"
+  desc "Securities trading platform for HK, US and A-shares"
   homepage "https://www.futunn.com/"
 
   livecheck do

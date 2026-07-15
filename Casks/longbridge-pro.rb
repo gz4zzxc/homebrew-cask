@@ -9,7 +9,7 @@ cask "longbridge-pro" do
       verified: "download.lbkrs.com/"
   name "Longbridge Pro"
   name "长桥Pro"
-  desc "跨市场券商交易平台"
+  desc "Cross-market securities trading platform"
   homepage "https://longbridge.com/desktop/zh-CN/"
 
   livecheck do
