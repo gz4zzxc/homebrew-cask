@@ -123,7 +123,7 @@ brew upgrade --cask aliyundrive
 
 ## 📋 系统要求
 
-- **macOS**: 以各 Cask 的 `depends_on macos:` 为准（当前为 macOS 10.15 Catalina 至 macOS 13 Ventura）
+- **macOS**: 以各 Cask 的 `depends_on macos:` 为准（当前各 Cask 的最低 macOS 要求介于 macOS 10.15 Catalina 与 macOS 13 Ventura 之间）
 - **Homebrew**: 最新版本
 - **架构支持**:
   - ✅ Apple Silicon (M1/M2/M3)
