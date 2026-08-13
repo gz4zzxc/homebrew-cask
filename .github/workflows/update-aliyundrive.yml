@@ -41,7 +41,6 @@ jobs:
 
       - name: Check new version
         id: check
-        continue-on-error: true # 允许失败但不终止整个工作流
         shell: bash
         run: |
           set -euo pipefail
