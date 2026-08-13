@@ -109,8 +109,8 @@ brew upgrade --cask aliyundrive
 4. 更新 Cask 文件中的 `sha256` 字段
 5. 测试 cask 语法：
    ```bash
-   brew audit --cask Casks/应用名.rb
-   brew style Casks/应用名.rb
+   brew style gz4zzxc/cask/<token>
+   brew audit --cask --strict gz4zzxc/cask/<token>
    ```
 
 ### 添加新应用
@@ -123,7 +123,7 @@ brew upgrade --cask aliyundrive
 
 ## 📋 系统要求
 
-- **macOS**: 10.15 (Catalina) 或更高版本
+- **macOS**: 以各 Cask 的 `depends_on macos:` 为准（当前各 Cask 的最低 macOS 要求介于 macOS 10.15 Catalina 与 macOS 13 Ventura 之间）
 - **Homebrew**: 最新版本
 - **架构支持**:
   - ✅ Apple Silicon (M1/M2/M3)
