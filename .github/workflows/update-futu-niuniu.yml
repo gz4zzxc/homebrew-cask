@@ -176,9 +176,8 @@ jobs:
           fi
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
-            echo "::warning::Failed to find a newer Futu version, skipping."
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Failed to determine latest Futu version."
+            exit 1
           fi
 
           echo "Latest version: $NEW_VERSION"

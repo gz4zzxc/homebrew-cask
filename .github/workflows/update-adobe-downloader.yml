@@ -54,9 +54,8 @@ jobs:
           TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
-            echo "::warning::Failed to parse latest GitHub tag, skipping."
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Failed to parse latest GitHub tag."
+            exit 1
           fi
 
           echo "Latest tag: $TAG"

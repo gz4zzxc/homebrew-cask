@@ -56,9 +56,8 @@ jobs:
           BUILD=$(printf "%s" "$feed" | sed -nE 's/.*sparkle:version="([^"]+)".*/\1/p' | head -n1)
 
           if [[ -z "${SHORT:-}" || -z "${BUILD:-}" ]]; then
-            echo "::warning::Failed to parse Eudic version, skipping."
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::Failed to parse Eudic version."
+            exit 1
           fi
 
           NEW_VERSION="$SHORT,$BUILD"
