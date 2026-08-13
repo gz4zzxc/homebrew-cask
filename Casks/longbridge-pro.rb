@@ -13,7 +13,7 @@ cask "longbridge-pro" do
   homepage "https://longbridge.com/desktop/zh-CN/"
 
   livecheck do
-    url "https://download.wbrks.com/longbridge-desktop/prod/latest-mac.yml"
+    url "https://download.lbkrs.com/longbridge-desktop/prod/latest-mac.yml"
     strategy :electron_builder
   end
 

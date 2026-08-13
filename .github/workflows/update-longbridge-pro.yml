@@ -45,7 +45,7 @@ jobs:
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          page=$(curl -fsSL 'https://download.wbrks.com/longbridge-desktop/prod/latest-mac.yml') || page=""
+          page=$(curl -fsSL 'https://download.lbkrs.com/longbridge-desktop/prod/latest-mac.yml') || page=""
           NEW_VERSION=$(printf "%s" "$page" | grep -E '^version:' | head -n1 | sed -E 's/version: *([0-9.]+)/\1/')
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
@@ -135,7 +135,7 @@ jobs:
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
           new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
-          download_url: "https://download.wbrks.com/longbridge-desktop/prod/latest-mac.yml"
+          download_url: "https://download.lbkrs.com/longbridge-desktop/prod/latest-mac.yml"
 
       - name: Final status report
         if: always()
