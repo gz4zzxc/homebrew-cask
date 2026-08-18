@@ -229,10 +229,25 @@ runs:
           SHA256_MSG="- Updated SHA256 checksum (arm64)"
         fi
 
+        STAGED_DIFF_STATUS=0
+        git diff --cached --quiet || STAGED_DIFF_STATUS=$?
+        case "$STAGED_DIFF_STATUS" in
+          0)
+            echo "::notice::No changes to commit"
+            exit 0
+            ;;
+          1)
+            ;;
+          *)
+            echo "::error::Failed to inspect staged changes (git diff exited with $STAGED_DIFF_STATUS)"
+            exit "$STAGED_DIFF_STATUS"
+            ;;
+        esac
+
         git commit \
           -m "$COMMIT_MSG" \
           -m "- Updated version from ${OLD_VERSION} to ${NEW_VERSION}" \
           -m "$SHA256_MSG" \
           -m "- Updated README.md version table (display ${NEW_VERSION_DISPLAY})" \
-          -m "- Source: ${DOWNLOAD_URL}" || exit 0
+          -m "- Source: ${DOWNLOAD_URL}"
         git push
