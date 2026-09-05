@@ -6,7 +6,6 @@ cask "aliyundrive" do
          intel: "a0273748eda47b69f621e281a8228fd2791c4f8615ce041a3f248eec629941b2"
 
   url "https://cdn.aliyundrive.net/downloads/apps/desktop/aDrive-#{version}#{arch}.dmg",
-      verified:   "cdn.aliyundrive.net/",
       user_agent: :fake
   name "Aliyun Drive"
   name "阿里云盘"

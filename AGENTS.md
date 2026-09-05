@@ -72,9 +72,8 @@ Installing a fully-qualified cask also trusts that single item:
 - `desc`: short, factual English (< 80 chars), start with an uppercase letter;
   no app name, vendor, platform, or marketing fluff. Put Chinese / alternate
   names in extra `name` stanzas (Latin-alphabet `name` first).
-- Prefer vendor HTTPS URLs. Add `verified:` only when the URL domain differs
-  from the homepage domain (e.g. `cdn.example.net` vs `example.com`).
-  Same-organisation subdomains and `github.com` URLs do not need `verified:`.
+- Prefer vendor HTTPS URLs. Do not use `verified:` (deprecated by Homebrew;
+  use default URL verification behaviour instead).
 
 ## Testing Guidelines
 
