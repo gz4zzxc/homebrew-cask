@@ -10,7 +10,8 @@ cask "quick-outline" do
 
   livecheck do
     url :url
-    strategy :github_latest
+    regex(/^v?(\d+(?:\.\d+)+)$/i)
+    strategy :github_releases
   end
 
   auto_updates true
