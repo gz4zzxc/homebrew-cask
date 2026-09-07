@@ -56,14 +56,16 @@ jobs:
           fi
           json=$(curl -fsSL "${curl_headers[@]}" "$API")
 
-          # Newest non-draft, non-prerelease, stable-semver release that has
-          # the cask's macOS DMG. Skip rolling tags such as "dev-build".
+          # Newest non-draft, non-prerelease release whose tag equals the cask
+          # version (bare semver, no "v" prefix) and that has
+          # QuickOutline-<ver>-macos.dmg. The cask URL is
+          # releases/download/#{version}/..., so a v-prefixed tag would 404.
           selected=$(printf '%s' "$json" | jq -r '
             (if type == "array" then . else [] end)
             | map(
                 select(.draft == false and .prerelease == false)
-                | select((.tag_name // "") | test("^v?[0-9]+(\\.[0-9]+)+$"))
-                | (.tag_name | ltrimstr("v")) as $ver
+                | select((.tag_name // "") | test("^[0-9]+(\\.[0-9]+)+$"))
+                | .tag_name as $ver
                 | ((.assets // [])
                     | map(select(.name == ("QuickOutline-" + $ver + "-macos.dmg"))
                       | .browser_download_url)
@@ -87,6 +89,15 @@ jobs:
 
           if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
             echo "::notice::Already at latest stable version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Selected tag is the newest *installable* stable release. If the
+          # current version lost its DMG, that can be an older tag — do not
+          # commit a downgrade.
+          if [[ "$(printf '%s\n' "$CURRENT_VERSION" "$TAG" | sort -V | tail -n1)" != "$TAG" ]]; then
+            echo "::notice::Newest installable stable tag ${TAG} is not newer than ${CURRENT_VERSION}; leaving unchanged."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

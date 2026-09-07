@@ -10,7 +10,7 @@ cask "quick-outline" do
 
   livecheck do
     url :url
-    regex(/^v?(\d+(?:\.\d+)+)$/i)
+    regex(/^(\d+(?:\.\d+)+)$/i)
     strategy :github_releases
   end
 
