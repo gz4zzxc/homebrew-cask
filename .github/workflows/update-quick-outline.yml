@@ -38,34 +38,72 @@ jobs:
       - name: Check new version
         id: check
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          API="https://api.github.com/repos/ririv/QuickOutline/releases/latest"
+          # /releases/latest currently points at the rolling "dev-build" tag
+          # (not a dotted numeric version, and not marked as a GitHub prerelease).
+          API="https://api.github.com/repos/ririv/QuickOutline/releases?per_page=100"
           CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/quick-outline.rb)
 
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          json=$(curl -fsSL -H "Accept: application/vnd.github+json" "$API")
-          TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+          curl_headers=(-H "Accept: application/vnd.github+json")
+          if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+            curl_headers+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+          fi
+          json=$(curl -fsSL "${curl_headers[@]}" "$API")
 
-          if [[ -z "${TAG:-}" ]]; then
-            echo "::error::Failed to parse latest GitHub tag."
-            exit 1
+          # Newest non-draft, non-prerelease release whose tag equals the cask
+          # version (bare dotted numeric tag, no "v" prefix) and that has
+          # QuickOutline-<ver>-macos.dmg. The cask URL is
+          # releases/download/#{version}/..., so a v-prefixed tag would 404.
+          selected=$(printf '%s' "$json" | jq -r '
+            (if type == "array" then . else [] end)
+            | map(
+                select(.draft == false and .prerelease == false)
+                | select((.tag_name // "") | test("^[0-9]+(\\.[0-9]+)+$"))
+                | .tag_name as $ver
+                | ((.assets // [])
+                    | map(select(.name == ("QuickOutline-" + $ver + "-macos.dmg"))
+                      | .browser_download_url)
+                    | .[0] // empty) as $url
+                | select($url != null and $url != "")
+                | $ver + "\t" + $url
+              )
+            | .[0] // empty
+          ')
+
+          if [[ -z "${selected:-}" ]]; then
+            echo "::notice::No installable stable GitHub release found; leaving ${CURRENT_VERSION} unchanged."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          echo "Latest tag: $TAG"
+          TAG="${selected%%$'\t'*}"
+          URL="${selected#*$'\t'}"
+
+          echo "Latest stable tag: $TAG"
 
           if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
-            echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "::notice::Already at latest stable version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Selected tag is the newest *installable* stable release. If the
+          # current version lost its DMG, that can be an older tag — do not
+          # commit a downgrade.
+          if [[ "$(printf '%s\n' "$CURRENT_VERSION" "$TAG" | sort -V | tail -n1)" != "$TAG" ]]; then
+            echo "::notice::Newest installable stable tag ${TAG} is not newer than ${CURRENT_VERSION}; leaving unchanged."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "::notice::New version available: $TAG"
           echo "::endgroup::"
-
-          URL="https://github.com/ririv/QuickOutline/releases/download/${TAG}/QuickOutline-${TAG}-macos.dmg"
 
           echo "::group::Downloading file"
           echo "Downloading from: $URL"
@@ -129,7 +167,7 @@ jobs:
           new_version: ${{ steps.check.outputs.new_version }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256: ${{ steps.check.outputs.new_sha256 }}
-          download_url: "https://github.com/ririv/QuickOutline/releases/latest"
+          download_url: "https://github.com/ririv/QuickOutline/releases/tag/${{ steps.check.outputs.new_version }}"
 
       - name: Final status report
         if: always()
