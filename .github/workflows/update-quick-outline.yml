@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           # /releases/latest currently points at the rolling "dev-build" tag
           # (not a stable semver, and not marked as a GitHub prerelease).
-          API="https://api.github.com/repos/ririv/QuickOutline/releases"
+          API="https://api.github.com/repos/ririv/QuickOutline/releases?per_page=100"
           CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/quick-outline.rb)
 
           echo "::group::Checking for new version"
@@ -56,20 +56,22 @@ jobs:
           fi
           json=$(curl -fsSL "${curl_headers[@]}" "$API")
 
-          # Newest non-draft, non-prerelease, stable-semver release. Skip
-          # rolling tags such as "dev-build" / "nightly".
+          # Newest non-draft, non-prerelease, stable-semver release that has
+          # the cask's macOS DMG. Skip rolling tags such as "dev-build".
           selected=$(printf '%s' "$json" | jq -r '
-            [.[]
-              | select(.draft == false and .prerelease == false)
-              | select(.tag_name | test("^v?[0-9]+(\\.[0-9]+)+$"))
-              | (.tag_name | ltrimstr("v")) as $ver
-              | $ver + "\t" + (
-                  [.assets[]?
-                    | select(.name == ("QuickOutline-" + $ver + "-macos.dmg"))
-                    | .browser_download_url
-                  ][0] // ""
-                )
-            ][0] // empty
+            (if type == "array" then . else [] end)
+            | map(
+                select(.draft == false and .prerelease == false)
+                | select((.tag_name // "") | test("^v?[0-9]+(\\.[0-9]+)+$"))
+                | (.tag_name | ltrimstr("v")) as $ver
+                | ((.assets // [])
+                    | map(select(.name == ("QuickOutline-" + $ver + "-macos.dmg"))
+                      | .browser_download_url)
+                    | .[0] // empty) as $url
+                | select($url != null and $url != "")
+                | $ver + "\t" + $url
+              )
+            | .[0] // empty
           ')
 
           if [[ -z "${selected:-}" ]]; then
@@ -87,11 +89,6 @@ jobs:
             echo "::notice::Already at latest stable version: $CURRENT_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
-          fi
-
-          if [[ -z "${URL:-}" ]]; then
-            echo "::error::Stable version ${TAG} has no QuickOutline-${TAG}-macos.dmg asset."
-            exit 1
           fi
 
           echo "::notice::New version available: $TAG"
