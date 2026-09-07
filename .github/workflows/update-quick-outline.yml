@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           # /releases/latest currently points at the rolling "dev-build" tag
-          # (not a stable semver, and not marked as a GitHub prerelease).
+          # (not a dotted numeric version, and not marked as a GitHub prerelease).
           API="https://api.github.com/repos/ririv/QuickOutline/releases?per_page=100"
           CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/quick-outline.rb)
 
@@ -57,7 +57,7 @@ jobs:
           json=$(curl -fsSL "${curl_headers[@]}" "$API")
 
           # Newest non-draft, non-prerelease release whose tag equals the cask
-          # version (bare semver, no "v" prefix) and that has
+          # version (bare dotted numeric tag, no "v" prefix) and that has
           # QuickOutline-<ver>-macos.dmg. The cask URL is
           # releases/download/#{version}/..., so a v-prefixed tag would 404.
           selected=$(printf '%s' "$json" | jq -r '
@@ -77,7 +77,7 @@ jobs:
           ')
 
           if [[ -z "${selected:-}" ]]; then
-            echo "::notice::No stable GitHub release found; leaving ${CURRENT_VERSION} unchanged."
+            echo "::notice::No installable stable GitHub release found; leaving ${CURRENT_VERSION} unchanged."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
