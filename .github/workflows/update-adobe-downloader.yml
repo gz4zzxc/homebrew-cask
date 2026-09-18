@@ -42,6 +42,8 @@ jobs:
       - name: Check new version
         id: check
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           API="https://api.github.com/repos/X1a0He/Adobe-Downloader/releases/latest"
@@ -50,7 +52,11 @@ jobs:
           echo "::group::Checking for new version"
           echo "Current version: $CURRENT_VERSION"
 
-          json=$(curl -fsSL -H "Accept: application/vnd.github+json" "$API")
+          curl_headers=(-H "Accept: application/vnd.github+json")
+          if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+            curl_headers+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+          fi
+          json=$(curl -fsSL "${curl_headers[@]}" "$API")
           TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 
           if [[ -z "${TAG:-}" ]]; then
