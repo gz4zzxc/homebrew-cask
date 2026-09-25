@@ -26,7 +26,10 @@ cask "opencode-desktop-v2" do
   app "OpenCode.app"
 
   zap trash: [
-    "~/Library/Caches/ai.opencode.desktop",
-    "~/Library/Logs/ai.opencode.desktop",
+    "~/Library/Application Support/ai.opencode.desktop",
+    "~/Library/Application Support/CrashReporter/OpenCode Helper_*.plist",
+    "~/Library/Application Support/CrashReporter/OpenCode_*.plist",
+    "~/Library/Preferences/ai.opencode.desktop.plist",
+    "~/Library/WebKit/ai.opencode.desktop",
   ]
 end
