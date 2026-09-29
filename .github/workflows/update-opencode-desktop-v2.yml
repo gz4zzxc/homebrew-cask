@@ -26,15 +26,6 @@ jobs:
           workflow_name: "Update OpenCode Desktop V2 Cask"
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore download cache
-        uses: actions/cache/restore@v5
-        id: download-cache
-        with:
-          path: /tmp/cask-downloads/opencode-desktop-v2-*.dmg
-          key: ${{ runner.os }}-opencode-desktop-v2-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-opencode-desktop-v2-
-
       - name: Check new version
         id: check
         shell: bash
@@ -77,6 +68,28 @@ jobs:
 
           if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
             echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Rollback guard: the stable endpoint may temporarily serve an
+          # older build; never commit an automatic downgrade.
+          version_compare() {
+            local ver1=$1 ver2=$2
+            local IFS=.
+            local i ver1_array=($ver1) ver2_array=($ver2)
+            for ((i=${#ver1_array[@]}; i<${#ver2_array[@]}; i++)); do ver1_array[i]=0; done
+            for ((i=${#ver2_array[@]}; i<${#ver1_array[@]}; i++)); do ver2_array[i]=0; done
+            for ((i=0; i<${#ver1_array[@]}; i++)); do
+              if ((ver1_array[i] < ver2_array[i])); then echo -1; return; fi
+              if ((ver1_array[i] > ver2_array[i])); then echo 1; return; fi
+            done
+            echo 0
+          }
+
+          COMPARE_RESULT=$(version_compare "$NEW_VERSION" "$CURRENT_VERSION")
+          if [[ $COMPARE_RESULT -lt 0 ]]; then
+            echo "::warning::Stable version $NEW_VERSION is older than current version $CURRENT_VERSION, skipping update to prevent version rollback"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -126,16 +139,6 @@ jobs:
           fi
 
           echo "::notice::All outputs validated successfully"
-
-      - name: Save download cache
-        if: |
-          always() &&
-          steps.download-cache.outputs.cache-hit != 'true' &&
-          steps.check.outputs.update_needed == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: /tmp/cask-downloads/opencode-desktop-v2-*.dmg
-          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
