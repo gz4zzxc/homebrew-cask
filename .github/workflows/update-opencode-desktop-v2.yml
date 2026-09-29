@@ -1,0 +1,163 @@
+name: Update OpenCode Desktop V2 Cask
+
+on:
+  schedule:
+    - cron: "42 2 * * *" # 每天检查一次
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: update-opencode-desktop-v2
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for running updates
+        id: check-running
+        uses: ./.github/actions/check-concurrency
+        with:
+          workflow_name: "Update OpenCode Desktop V2 Cask"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          STABLE_URL="https://opencode.ai/download/stable/darwin-aarch64-dmg"
+          CURRENT_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/opencode-desktop-v2.rb)
+
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
+
+          LOCATION=$(curl -fsSI "$STABLE_URL" | awk 'BEGIN{IGNORECASE=1} /^location:/ {gsub(/\r/, "", $2); print $2}' | head -n1)
+          if [[ -z "${LOCATION:-}" ]]; then
+            echo "::error::Failed to resolve OpenCode Desktop V2 stable redirect."
+            exit 1
+          fi
+          echo "Redirect location: $LOCATION"
+
+          # Keep in sync with the livecheck regex in Casks/opencode-desktop-v2.rb.
+          NEW_VERSION=$(printf "%s" "$LOCATION" | sed -E 's#^https://opencode\.ai/files/bin/([0-9]+(\.[0-9]+)+)/opencode-desktop-mac-arm64\.dmg$#\1#')
+          if [[ -z "${NEW_VERSION:-}" || "$NEW_VERSION" == "$LOCATION" ]]; then
+            echo "::error::Failed to parse version from redirect URL: $LOCATION"
+            exit 1
+          fi
+
+          # Contract guard: the Cask `url` stanza is a fixed template that
+          # automation never rewrites (commit-update only bumps version/sha256).
+          # If upstream renames its assets, stop instead of committing a
+          # version whose Cask URL would 404 on `brew upgrade`.
+          # NOTE: keep this line in sync with Casks/opencode-desktop-v2.rb.
+          EXPECTED_URL="https://opencode.ai/files/bin/${NEW_VERSION}/opencode-desktop-mac-arm64.dmg"
+          if [[ "$LOCATION" != "$EXPECTED_URL" ]]; then
+            echo "::error::Redirect URL no longer matches the Cask URL template; manual update required."
+            echo "::error::redirect: $LOCATION"
+            echo "::error::expected: $EXPECTED_URL"
+            exit 1
+          fi
+
+          echo "Latest version: $NEW_VERSION"
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Rollback guard: the stable endpoint may temporarily serve an
+          # older build; never commit an automatic downgrade.
+          version_compare() {
+            local ver1=$1 ver2=$2
+            local IFS=.
+            local i ver1_array=($ver1) ver2_array=($ver2)
+            for ((i=${#ver1_array[@]}; i<${#ver2_array[@]}; i++)); do ver1_array[i]=0; done
+            for ((i=${#ver2_array[@]}; i<${#ver1_array[@]}; i++)); do ver2_array[i]=0; done
+            for ((i=0; i<${#ver1_array[@]}; i++)); do
+              if ((ver1_array[i] < ver2_array[i])); then echo -1; return; fi
+              if ((ver1_array[i] > ver2_array[i])); then echo 1; return; fi
+            done
+            echo 0
+          }
+
+          COMPARE_RESULT=$(version_compare "$NEW_VERSION" "$CURRENT_VERSION")
+          if [[ $COMPARE_RESULT -lt 0 ]]; then
+            echo "::warning::Stable version $NEW_VERSION is older than current version $CURRENT_VERSION, skipping update to prevent version rollback"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::New version available: $NEW_VERSION"
+          echo "::endgroup::"
+
+          echo "::group::Downloading file"
+          echo "Downloading from: $LOCATION"
+
+          mkdir -p /tmp/cask-downloads
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$LOCATION" -o /tmp/cask-downloads/opencode-desktop-v2-${NEW_VERSION}-mac-arm64.dmg
+
+          if [[ ! -f /tmp/cask-downloads/opencode-desktop-v2-${NEW_VERSION}-mac-arm64.dmg ]]; then
+            echo "::error::Download failed - file not found"
+            exit 1
+          fi
+
+          FILE_SIZE=$(stat -c%s /tmp/cask-downloads/opencode-desktop-v2-${NEW_VERSION}-mac-arm64.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/opencode-desktop-v2-${NEW_VERSION}-mac-arm64.dmg 2>/dev/null || echo "0")
+
+          if [[ "$FILE_SIZE" -lt 50000000 ]]; then
+            echo "::error::Downloaded file is too small (${FILE_SIZE} bytes) - possible corruption"
+            exit 1
+          fi
+
+          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
+          echo "::endgroup::"
+
+          SHA=$(shasum -a 256 /tmp/cask-downloads/opencode-desktop-v2-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+
+          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
+            echo "::error::SHA256 is empty"
+            exit 1
+          fi
+
+          echo "::notice::All outputs validated successfully"
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/commit-update
+        with:
+          cask_name: opencode-desktop-v2
+          display_name: "OpenCode Desktop V2"
+          new_version: ${{ steps.check.outputs.new_version }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_sha256: ${{ steps.check.outputs.new_sha256 }}
+          download_url: "https://opencode.ai/download/stable/darwin-aarch64-dmg"
+
+      - name: Final status report
+        if: always()
+        uses: ./.github/actions/final-report
+        with:
+          job_status: ${{ job.status }}
+          update_needed: ${{ steps.check.outputs.update_needed }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_version: ${{ steps.check.outputs.new_version }}
+          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
+          workflow_name: "Update OpenCode Desktop V2 Cask"
