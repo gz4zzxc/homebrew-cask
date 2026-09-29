@@ -71,7 +71,7 @@ brew upgrade --cask aliyundrive
 | ---------------------- | ------------------ | ----------- | ------------- | -------- | ------------------------------------------------------------------- |
 | 🔥 阿里云盘             | `aliyundrive` | 6.9.3 | ARM64 + Intel | ✅        | [官网](https://www.aliyundrive.com/)                                |
 | 📈 富途牛牛             | `futu-niuniu` | 16.33.17808 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
-| 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/zh-CN/)                       |
+| 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | 已冻结     | [官网](https://longbridge.com/desktop/zh-CN/)                       |
 | 💹 长桥Pro新版           | `longbridge-desktop` | 0.20.1 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/)                             |
 | 📚 欧路词典             | `eudic` | 26.9.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
 | 🎨 Adobe Downloader     | `adobe-downloader` | 3.1.0       | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
@@ -81,7 +81,7 @@ brew upgrade --cask aliyundrive
 
 ## 🔄 自动更新机制
 
-本仓库的所有 cask 都配置了自动更新机制：
+本仓库的所有 cask 都配置了自动更新机制（`longbridge-pro` 经典版除外，已冻结在 2.38.18）：
 
 - **检查频率**: 定期自动检查新版本（根据软件更新频率，从每日到每周不等）
 - **更新内容**: 自动更新版本号、SHA256 校验和、README.md 版本表格
