@@ -10,7 +10,7 @@ cask "eudic" do
 
   livecheck do
     url "https://static.eudic.net/pkg/eudic_mac.xml"
-    strategy :sparkle, &:short_version
+    strategy :sparkle
   end
 
   auto_updates true
