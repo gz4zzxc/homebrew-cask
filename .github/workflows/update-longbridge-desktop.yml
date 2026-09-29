@@ -73,6 +73,20 @@ jobs:
             exit 1
           fi
 
+          # Contract guard: the Cask `url` stanza is a fixed template that
+          # automation never rewrites (commit-update only bumps version/sha256).
+          # If upstream renames its assets, stop instead of committing a
+          # version whose Cask URL would 404 on `brew upgrade`.
+          # NOTE: keep these two lines in sync with Casks/longbridge-desktop.rb.
+          EXPECTED_ARM_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-aarch64.dmg"
+          EXPECTED_INTEL_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-x86_64.dmg"
+          if [[ "$ARM_URL" != "$EXPECTED_ARM_URL" || "$INTEL_URL" != "$EXPECTED_INTEL_URL" ]]; then
+            echo "::error::Manifest asset URL no longer matches the Cask URL template; manual update required."
+            echo "::error::manifest arm:   $ARM_URL"
+            echo "::error::manifest intel: $INTEL_URL"
+            exit 1
+          fi
+
           echo "Latest version: $NEW_VERSION"
 
           if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
