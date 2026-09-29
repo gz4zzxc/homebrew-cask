@@ -50,6 +50,9 @@ brew install --cask quick-outline
 
 # 安装 OpenCode V2 Desktop（Apple Silicon，macOS 13+）
 brew install --cask opencode-desktop-v2
+
+# 安装长桥Pro新版（原生重写版，可与经典版共存）
+brew install --cask longbridge-desktop
 ```
 
 ### 3. 更新应用
@@ -68,7 +71,8 @@ brew upgrade --cask aliyundrive
 | ---------------------- | ------------------ | ----------- | ------------- | -------- | ------------------------------------------------------------------- |
 | 🔥 阿里云盘             | `aliyundrive` | 6.9.3 | ARM64 + Intel | ✅        | [官网](https://www.aliyundrive.com/)                                |
 | 📈 富途牛牛             | `futu-niuniu` | 16.33.17808 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
-| 💹 长桥Pro              | `longbridge-pro` | 2.38.18 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/zh-CN/)                       |
+| 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/zh-CN/)                       |
+| 💹 长桥Pro新版           | `longbridge-desktop` | 0.20.1 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/)                             |
 | 📚 欧路词典             | `eudic` | 26.9.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
 | 🎨 Adobe Downloader     | `adobe-downloader` | 3.1.0       | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2026.1 | Universal     | ✅        | [官网](https://www.sony.net/catalyst)                               |

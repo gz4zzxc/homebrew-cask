@@ -1,0 +1,191 @@
+name: Update Longbridge Desktop Cask
+
+on:
+  schedule:
+    - cron: "28 1 */3 * *" # 每 3 天检查一次（与 longbridge-pro 错开）
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: update-longbridge-desktop
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check for running updates
+        id: check-running
+        uses: ./.github/actions/check-concurrency
+        with:
+          workflow_name: "Update Longbridge Desktop Cask"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore download cache
+        uses: actions/cache/restore@v5
+        id: download-cache
+        with:
+          path: /tmp/cask-downloads/longbridge-desktop-*.dmg
+          key: ${{ runner.os }}-longbridge-desktop-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-longbridge-desktop-
+
+      - name: Check new version
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_VERSION=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/longbridge-desktop.rb)
+
+          echo "::group::Checking for new version"
+          echo "Current version: $CURRENT_VERSION"
+
+          manifest=$(curl -fsSL 'https://assets.lbkrs.com/github/release/longbridge-desktop/stable/latest.json') || manifest=""
+          if [[ -z "${manifest:-}" ]]; then
+            echo "::error::Failed to fetch Longbridge Desktop release manifest."
+            exit 1
+          fi
+
+          # Trust only what the vendor manifest declares: version, asset URLs,
+          # and asset SHA256 checksums. Never reconstruct URLs or blindly
+          # trust the checksum of whatever was downloaded.
+          NEW_VERSION=$(printf "%s" "$manifest" | jq -r '.version // empty')
+          ARM_URL=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .url // empty' | head -n1)
+          ARM_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .sha256 // empty' | head -n1)
+          INTEL_URL=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .url // empty' | head -n1)
+          INTEL_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .sha256 // empty' | head -n1)
+
+          if [[ -z "${NEW_VERSION:-}" ]]; then
+            echo "::error::Failed to parse Longbridge Desktop version."
+            exit 1
+          fi
+          if [[ -z "${ARM_URL:-}" || ! "${ARM_EXPECTED_SHA:-}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Manifest has no usable macos-aarch64.dmg asset (url/sha256)."
+            exit 1
+          fi
+          if [[ -z "${INTEL_URL:-}" || ! "${INTEL_EXPECTED_SHA:-}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Manifest has no usable macos-x86_64.dmg asset (url/sha256)."
+            exit 1
+          fi
+
+          # Contract guard: the Cask `url` stanza is a fixed template that
+          # automation never rewrites (commit-update only bumps version/sha256).
+          # If upstream renames its assets, stop instead of committing a
+          # version whose Cask URL would 404 on `brew upgrade`.
+          # NOTE: keep these two lines in sync with Casks/longbridge-desktop.rb.
+          EXPECTED_ARM_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-aarch64.dmg"
+          EXPECTED_INTEL_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-x86_64.dmg"
+          if [[ "$ARM_URL" != "$EXPECTED_ARM_URL" || "$INTEL_URL" != "$EXPECTED_INTEL_URL" ]]; then
+            echo "::error::Manifest asset URL no longer matches the Cask URL template; manual update required."
+            echo "::error::manifest arm:   $ARM_URL"
+            echo "::error::manifest intel: $INTEL_URL"
+            exit 1
+          fi
+
+          echo "Latest version: $NEW_VERSION"
+
+          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+            echo "::notice::Already at latest version: $CURRENT_VERSION"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::New version available: $NEW_VERSION"
+          echo "::endgroup::"
+
+          echo "::group::Downloading files"
+          echo "ARM URL: $ARM_URL"
+          mkdir -p /tmp/cask-downloads
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$ARM_URL" -o /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-arm64.dmg
+          echo "Intel URL: $INTEL_URL"
+          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$INTEL_URL" -o /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-x64.dmg
+
+          for file in /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-*.dmg; do
+            if [[ ! -f "$file" ]]; then
+              echo "::error::Download failed for $file"
+              exit 1
+            fi
+
+            FILE_SIZE=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
+            if [[ "$FILE_SIZE" -lt 30000000 ]]; then
+              echo "::error::Downloaded file $file is too small (${FILE_SIZE} bytes)"
+              exit 1
+            fi
+            echo "::notice::Downloaded $(basename "$file") - ${FILE_SIZE} bytes"
+          done
+          echo "::endgroup::"
+
+          ARM_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
+          INTEL_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-x64.dmg | awk '{print $1}')
+
+          # Fail closed: the downloaded files must match the manifest checksums.
+          if [[ "$ARM_SHA" != "$ARM_EXPECTED_SHA" ]]; then
+            echo "::error::ARM SHA256 mismatch (downloaded $ARM_SHA, manifest says $ARM_EXPECTED_SHA)."
+            exit 1
+          fi
+          if [[ "$INTEL_SHA" != "$INTEL_EXPECTED_SHA" ]]; then
+            echo "::error::Intel SHA256 mismatch (downloaded $INTEL_SHA, manifest says $INTEL_EXPECTED_SHA)."
+            exit 1
+          fi
+          echo "::notice::SHA256 checksums match the release manifest"
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
+          echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate check outputs
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
+            echo "::error::New version is empty"
+            exit 1
+          fi
+          if [[ -z "${{ steps.check.outputs.new_sha256_arm }}" ]]; then
+            echo "::error::ARM SHA256 is empty"
+            exit 1
+          fi
+          if [[ -z "${{ steps.check.outputs.new_sha256_intel }}" ]]; then
+            echo "::error::Intel SHA256 is empty"
+            exit 1
+          fi
+          echo "::notice::All outputs validated successfully"
+
+      - name: Save download cache
+        if: |
+          always() &&
+          steps.download-cache.outputs.cache-hit != 'true' &&
+          steps.check.outputs.update_needed == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: /tmp/cask-downloads/longbridge-desktop-*.dmg
+          key: ${{ steps.download-cache.outputs.cache-primary-key }}
+
+      - name: Commit and push
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/commit-update
+        with:
+          cask_name: longbridge-desktop
+          display_name: "Longbridge Desktop"
+          new_version: ${{ steps.check.outputs.new_version }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
+          new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
+          download_url: "https://assets.lbkrs.com/github/release/longbridge-desktop/stable/latest.json"
+
+      - name: Final status report
+        if: always()
+        uses: ./.github/actions/final-report
+        with:
+          job_status: ${{ job.status }}
+          update_needed: ${{ steps.check.outputs.update_needed }}
+          old_version: ${{ steps.check.outputs.old_version }}
+          new_version: ${{ steps.check.outputs.new_version }}
+          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
+          workflow_name: "Update Longbridge Desktop Cask"
