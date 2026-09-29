@@ -46,10 +46,30 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           manifest=$(curl -fsSL 'https://assets.lbkrs.com/github/release/longbridge-desktop/stable/latest.json') || manifest=""
+          if [[ -z "${manifest:-}" ]]; then
+            echo "::error::Failed to fetch Longbridge Desktop release manifest."
+            exit 1
+          fi
+
+          # Trust only what the vendor manifest declares: version, asset URLs,
+          # and asset SHA256 checksums. Never reconstruct URLs or blindly
+          # trust the checksum of whatever was downloaded.
           NEW_VERSION=$(printf "%s" "$manifest" | jq -r '.version // empty')
+          ARM_URL=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .url // empty' | head -n1)
+          ARM_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .sha256 // empty' | head -n1)
+          INTEL_URL=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .url // empty' | head -n1)
+          INTEL_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .sha256 // empty' | head -n1)
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "::error::Failed to parse Longbridge Desktop version."
+            exit 1
+          fi
+          if [[ -z "${ARM_URL:-}" || ! "${ARM_EXPECTED_SHA:-}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Manifest has no usable macos-aarch64.dmg asset (url/sha256)."
+            exit 1
+          fi
+          if [[ -z "${INTEL_URL:-}" || ! "${INTEL_EXPECTED_SHA:-}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Manifest has no usable macos-x86_64.dmg asset (url/sha256)."
             exit 1
           fi
 
@@ -63,9 +83,6 @@ jobs:
 
           echo "::notice::New version available: $NEW_VERSION"
           echo "::endgroup::"
-
-          ARM_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-aarch64.dmg"
-          INTEL_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-x86_64.dmg"
 
           echo "::group::Downloading files"
           echo "ARM URL: $ARM_URL"
@@ -91,6 +108,17 @@ jobs:
 
           ARM_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
           INTEL_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-x64.dmg | awk '{print $1}')
+
+          # Fail closed: the downloaded files must match the manifest checksums.
+          if [[ "$ARM_SHA" != "$ARM_EXPECTED_SHA" ]]; then
+            echo "::error::ARM SHA256 mismatch (downloaded $ARM_SHA, manifest says $ARM_EXPECTED_SHA)."
+            exit 1
+          fi
+          if [[ "$INTEL_SHA" != "$INTEL_EXPECTED_SHA" ]]; then
+            echo "::error::Intel SHA256 mismatch (downloaded $INTEL_SHA, manifest says $INTEL_EXPECTED_SHA)."
+            exit 1
+          fi
+          echo "::notice::SHA256 checksums match the release manifest"
 
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
