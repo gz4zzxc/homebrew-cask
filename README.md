@@ -131,7 +131,7 @@ brew upgrade --cask aliyundrive
 
 ## 📋 系统要求
 
-- **macOS**: 以各 Cask 的 `depends_on macos:` 为准（当前各 Cask 的最低 macOS 要求介于 macOS 11 Big Sur 与 macOS 13 Ventura 之间）
+- **macOS**: 以各 Cask 的 `depends_on` 为准（Adobe Downloader、欧路词典、OpenCode V2 Desktop 要求 macOS 13 Ventura 及以上，Sony Catalyst Browse 要求 macOS 12 Monterey 及以上；其余 cask 未声明高于 Homebrew 自身运行下限的最低 macOS 版本）
 - **Homebrew**: 最新版本
 - **架构支持**:
   - ✅ Apple Silicon (M1/M2/M3)
