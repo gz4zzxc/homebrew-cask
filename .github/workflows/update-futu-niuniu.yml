@@ -17,7 +17,7 @@ jobs:
   update:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # 检查是否有其他更新正在进行
       - name: Check for running updates
@@ -32,18 +32,6 @@ jobs:
         run: |
           npm install --no-save playwright 2>&1 | tail -1
           npx playwright install chromium 2>&1 | tail -3
-
-      # 优化的下载缓存策略
-      # 只缓存下载的 DMG 文件，避免重复下载相同版本
-      # 使用 github.sha 作为缓存键，确保每次提交的缓存独立
-      - name: Restore download cache
-        uses: actions/cache/restore@v5
-        id: download-cache
-        with:
-          path: /tmp/cask-downloads/*.dmg
-          key: ${{ runner.os }}-futu-niuniu-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-futu-niuniu-
 
       - name: Check new version
         id: check
@@ -236,17 +224,6 @@ jobs:
           fi
 
           echo "::notice::All outputs validated successfully"
-
-      # 保存下载缓存
-      - name: Save download cache
-        if: |
-          always() && 
-          steps.download-cache.outputs.cache-hit != 'true' &&
-          steps.check.outputs.update_needed == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: /tmp/cask-downloads/*.dmg
-          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
