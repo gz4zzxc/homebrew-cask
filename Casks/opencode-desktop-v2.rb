@@ -1,6 +1,6 @@
 cask "opencode-desktop-v2" do
-  version "2.0.19"
-  sha256 "63c13eca0e390ba1f0bf155a1347b7d823d507b313c724daecd51e9936b035a1"
+  version "2.0.20"
+  sha256 "7884748ef467c75e92994482e08fbdc07eff6a8a5c1e849254459f1a49e81c8c"
 
   url "https://opencode.ai/files/bin/#{version}/opencode-desktop-mac-arm64.dmg"
   name "OpenCode Desktop V2"
