@@ -9,8 +9,7 @@ cask "catalyst-browse" do
   homepage "https://www.sony.net/catalyst"
 
   livecheck do
-    url "https://www.sony.com/electronics/support/articles/CCCT03000"
-    regex(/Catalyst\s+Browse\s+(\d+(?:\.\d+)+)/i)
+    skip "Version checked by dedicated update workflow"
   end
 
   auto_updates true
