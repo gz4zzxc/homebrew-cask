@@ -17,7 +17,7 @@ jobs:
   update:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check for running updates
         id: check-running
@@ -25,15 +25,6 @@ jobs:
         with:
           workflow_name: "Update Longbridge Desktop Cask"
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Restore download cache
-        uses: actions/cache/restore@v5
-        id: download-cache
-        with:
-          path: /tmp/cask-downloads/longbridge-desktop-*.dmg
-          key: ${{ runner.os }}-longbridge-desktop-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-longbridge-desktop-
 
       - name: Check new version
         id: check
@@ -156,16 +147,6 @@ jobs:
             exit 1
           fi
           echo "::notice::All outputs validated successfully"
-
-      - name: Save download cache
-        if: |
-          always() &&
-          steps.download-cache.outputs.cache-hit != 'true' &&
-          steps.check.outputs.update_needed == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: /tmp/cask-downloads/longbridge-desktop-*.dmg
-          key: ${{ steps.download-cache.outputs.cache-primary-key }}
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
