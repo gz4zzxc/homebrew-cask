@@ -9,9 +9,7 @@ cask "catalyst-browse" do
   homepage "https://www.sony.net/catalyst"
 
   livecheck do
-    url "https://support.d-imaging.sony.co.jp/disoft_DL/CatalystBrowse_DL/mac?fm=en", user_agent: :browser
-    regex(%r{/NEX/([^/]+)/Catalyst_Browse\.dmg}i)
-    strategy :header_match
+    skip "Version checked by dedicated update workflow"
   end
 
   auto_updates true
