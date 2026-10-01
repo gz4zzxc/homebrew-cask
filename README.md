@@ -77,7 +77,7 @@ brew upgrade --cask aliyundrive
 | 🎨 Adobe Downloader     | `adobe-downloader` | 3.1.0       | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2026.1 | Universal     | ✅        | [官网](https://www.sony.net/catalyst)                               |
 | 📄 QuickOutline         | `quick-outline`    | 2.3.0       | Universal     | ✅        | [GitHub](https://github.com/ririv/QuickOutline)                    |
-| 💻 OpenCode V2 Desktop  | `opencode-desktop-v2` | 2.0.20 | ARM64         | ✅        | [官网](https://opencode.ai/v2/docs)                                  |
+| 💻 OpenCode V2 Desktop  | `opencode-desktop-v2` | 2.0.21 | ARM64         | ✅        | [官网](https://opencode.ai/v2/docs)                                  |
 
 ## 🔄 自动更新机制
 
