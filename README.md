@@ -70,7 +70,7 @@ brew upgrade --cask aliyundrive
 | 应用名称               | Cask 名称          | 当前版本    | 架构支持      | 自动更新 | 官网/项目                                                           |
 | ---------------------- | ------------------ | ----------- | ------------- | -------- | ------------------------------------------------------------------- |
 | 🔥 阿里云盘             | `aliyundrive` | 6.9.3 | ARM64 + Intel | ✅        | [官网](https://www.aliyundrive.com/)                                |
-| 📈 富途牛牛             | `futu-niuniu` | 16.33.17808 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
+| 📈 富途牛牛             | `futu-niuniu` | 16.34.27008 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
 | 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | 已冻结     | [官网](https://longbridge.com/desktop/zh-CN/)                       |
 | 💹 长桥Pro新版           | `longbridge-desktop` | 0.20.1 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/)                             |
 | 📚 欧路词典             | `eudic` | 26.9.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
