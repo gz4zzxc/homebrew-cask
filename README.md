@@ -74,7 +74,7 @@ brew upgrade --cask aliyundrive
 | 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | 已冻结     | [官网](https://longbridge.com/desktop/zh-CN/)                       |
 | 💹 长桥Pro新版           | `longbridge-desktop` | 1.0.0 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/)                             |
 | 📚 欧路词典             | `eudic` | 26.9.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
-| 🎨 Adobe Downloader     | `adobe-downloader` | 3.1.0       | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
+| 🎨 Adobe Downloader     | `adobe-downloader` | 3.2.0 | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2026.1 | Universal     | ✅        | [官网](https://www.sony.net/catalyst)                               |
 | 📄 QuickOutline         | `quick-outline`    | 2.3.0       | Universal     | ✅        | [GitHub](https://github.com/ririv/QuickOutline)                    |
 | 💻 OpenCode V2 Desktop  | `opencode-desktop-v2` | 2.0.30 | ARM64         | ✅        | [官网](https://opencode.ai/v2/docs)                                  |
