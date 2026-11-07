@@ -48,9 +48,6 @@ brew install --cask catalyst-browse
 # 安装 QuickOutline
 brew install --cask quick-outline
 
-# 安装 OpenCode V2 Desktop（Apple Silicon，macOS 13+）
-brew install --cask opencode-desktop-v2
-
 # 安装长桥Pro新版（原生重写版，可与经典版共存）
 brew install --cask longbridge-desktop
 ```
@@ -77,7 +74,6 @@ brew upgrade --cask aliyundrive
 | 🎨 Adobe Downloader     | `adobe-downloader` | 3.2.0 | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
 | 🎬 Sony Catalyst Browse | `catalyst-browse` | 2026.1 | Universal     | ✅        | [官网](https://www.sony.net/catalyst)                               |
 | 📄 QuickOutline         | `quick-outline`    | 2.3.0       | Universal     | ✅        | [GitHub](https://github.com/ririv/QuickOutline)                    |
-| 💻 OpenCode V2 Desktop  | `opencode-desktop-v2` | 2.2.5 | ARM64         | ✅        | [官网](https://opencode.ai/v2/docs)                                  |
 
 ## 🔄 自动更新机制
 
@@ -131,7 +127,7 @@ brew upgrade --cask aliyundrive
 
 ## 📋 系统要求
 
-- **macOS**: 以各 Cask 的 `depends_on` 为准（Adobe Downloader、欧路词典、OpenCode V2 Desktop 要求 macOS 13 Ventura 及以上，Sony Catalyst Browse 要求 macOS 12 Monterey 及以上；其余 cask 未声明高于 Homebrew 自身运行下限的最低 macOS 版本）
+- **macOS**: 以各 Cask 的 `depends_on` 为准（Adobe Downloader、欧路词典要求 macOS 13 Ventura 及以上，Sony Catalyst Browse 要求 macOS 12 Monterey 及以上；其余 cask 未声明高于 Homebrew 自身运行下限的最低 macOS 版本）
 - **Homebrew**: 最新版本
 - **架构支持**:
   - ✅ Apple Silicon (M1/M2/M3)
