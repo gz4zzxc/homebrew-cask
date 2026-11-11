@@ -18,11 +18,29 @@ cask "eudic" do
 
   app "Eudic.app"
 
+  uninstall quit: [
+    "com.eusoft.eudic",
+    "com.eusoft.eudic.LightPeek",
+  ]
+
   zap trash: [
+    "~/Library/Application Scripts/com.eusoft.eudic.QuickLook",
+    "~/Library/Application Scripts/group.com.eusoft.eudic",
+    "~/Library/Application Support/com.eusoft.eudic",
     "~/Library/Application Support/Eudic",
     "~/Library/Caches/com.eusoft.eudic",
+    "~/Library/Caches/com.eusoft.eudic.LightPeek",
+    "~/Library/Containers/com.eusoft.eudic.QuickLook",
+    "~/Library/Eudb_en",
+    "~/Library/Group Containers/group.com.eusoft.eudic",
+    "~/Library/HTTPStorages/com.eusoft.eudic",
+    "~/Library/HTTPStorages/com.eusoft.eudic.binarycookies",
+    "~/Library/HTTPStorages/com.eusoft.eudic.LightPeek",
+    "~/Library/Preferences/com.eusoft.eudic.LightPeek.plist",
     "~/Library/Preferences/com.eusoft.eudic.plist",
+    "~/Library/Preferences/group.com.eusoft.eudic.plist",
     "~/Library/Saved Application State/com.eusoft.eudic.savedState",
     "~/Library/WebKit/com.eusoft.eudic",
+    "~/Library/WebKit/com.eusoft.eudic.LightPeek",
   ]
 end

@@ -24,26 +24,20 @@ brew trust gz4zzxc/cask
 也可以不预先 trust 整个 tap，直接用完全限定名安装（只会 trust 该 cask）：
 
 ```bash
-brew install --cask gz4zzxc/cask/futu-niuniu
+brew install --cask gz4zzxc/cask/quick-outline
 ```
 
 ### 2. 安装应用
 
 ```bash
-# 安装富途牛牛
-brew install --cask futu-niuniu
-
-# 安装阿里云盘
-brew install --cask aliyundrive
-
-# 安装欧路词典
-brew install --cask eudic
-
 # 安装 Adobe Downloader
 brew install --cask adobe-downloader
 
 # 安装 Sony Catalyst Browse
 brew install --cask catalyst-browse
+
+# 安装欧路词典（使用本 tap 的版本）
+brew install --cask gz4zzxc/cask/eudic
 
 # 安装 QuickOutline
 brew install --cask quick-outline
@@ -59,16 +53,27 @@ brew install --cask longbridge-desktop
 brew upgrade --cask
 
 # 更新特定应用
-brew upgrade --cask aliyundrive
+brew upgrade --cask gz4zzxc/cask/quick-outline
 ```
+
+### 已移至官方 Homebrew Cask 的应用
+
+本仓库不再维护阿里云盘、富途牛牛和长桥 Pro 经典版，可改用官方 cask：
+
+```bash
+brew install --cask homebrew/cask/adrive
+brew install --cask homebrew/cask/futubull
+brew install --cask homebrew/cask/longbridge-pro
+```
+
+富途牛牛的官方 cask 将应用安装为 `Futubull.app`，Dock 或登录项可能需要重新指向。
+
+欧路词典继续由本 tap 维护。[官方 Homebrew cask](https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/e/eudic.rb) 的下载地址存在版本落后问题：2026-11-11 实测下载到 26.5.0，而[欧路更新源](https://static.eudic.net/pkg/eudic_mac.xml)提供 26.9.1，改用官方 cask 会回退版本。上游下载地址不固定版本，新版发布后至本仓库更新校验和之前，安装或升级可能暂时因校验失败而中断；详情见 [#33](../../issues/33)。
 
 ## 包含的应用
 
 | 应用名称               | Cask 名称          | 当前版本    | 架构支持      | 自动更新 | 官网/项目                                                           |
 | ---------------------- | ------------------ | ----------- | ------------- | -------- | ------------------------------------------------------------------- |
-| 🔥 阿里云盘             | `aliyundrive` | 6.9.3 | ARM64 + Intel | ✅        | [官网](https://www.aliyundrive.com/)                                |
-| 📈 富途牛牛             | `futu-niuniu` | 16.38.27408 | Universal     | ✅        | [官网](https://www.futunn.com/)                                     |
-| 💹 长桥Pro经典版         | `longbridge-pro` | 2.38.18 | ARM64 + Intel | 已冻结     | [官网](https://longbridge.com/desktop/zh-CN/)                       |
 | 💹 长桥Pro新版           | `longbridge-desktop` | 1.1.0 | ARM64 + Intel | ✅        | [官网](https://longbridge.com/desktop/)                             |
 | 📚 欧路词典             | `eudic` | 26.9.1 | Universal     | ✅        | [官网](https://www.eudic.net/)                                      |
 | 🎨 Adobe Downloader     | `adobe-downloader` | 3.2.0 | Universal     | ✅        | [GitHub](https://github.com/X1a0He/Adobe-Downloader)                |
@@ -77,7 +82,7 @@ brew upgrade --cask aliyundrive
 
 ## 🔄 自动更新机制
 
-本仓库的所有 cask 都配置了自动更新机制（`longbridge-pro` 经典版除外，已冻结在 2.38.18）：
+本仓库的所有 cask 都配置了自动更新机制：
 
 - **检查频率**: 定期自动检查新版本（根据软件更新频率，从每日到每周不等）
 - **更新内容**: 自动更新版本号、SHA256 校验和、README.md 版本表格
@@ -91,7 +96,7 @@ brew upgrade --cask aliyundrive
 如果需要立即检查更新，可以在 GitHub Actions 页面手动触发：
 
 1. 访问 [Actions 页面](../../actions)
-2. 选择对应的 workflow（如 "Update Aliyun Drive Cask"）
+2. 选择对应的 workflow（如 "Update QuickOutline Cask"）
 3. 点击 "Run workflow" 按钮
 
 ## 🛠️ 开发者指南
