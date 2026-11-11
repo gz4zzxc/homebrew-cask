@@ -20,8 +20,11 @@ cask "adobe-downloader" do
 
   zap trash: [
     "~/Library/Application Support/Adobe Downloader",
-    "~/Library/Caches/com.x1a0he.Adobe-Downloader",
-    "~/Library/Preferences/com.x1a0he.Adobe-Downloader.plist",
-    "~/Library/Saved Application State/com.x1a0he.Adobe-Downloader.savedState",
+    "~/Library/Caches/com.x1a0he.macOS.Adobe-Downloader",
+    "~/Library/HTTPStorages/com.x1a0he.macOS.Adobe-Downloader",
+    "~/Library/HTTPStorages/com.x1a0he.macOS.Adobe-Downloader.binarycookies",
+    "~/Library/Preferences/com.x1a0he.macOS.Adobe-Downloader.plist",
+    "~/Library/Saved Application State/com.x1a0he.macOS.Adobe-Downloader.savedState",
+    "~/Library/WebKit/com.x1a0he.macOS.Adobe-Downloader",
   ]
 end
