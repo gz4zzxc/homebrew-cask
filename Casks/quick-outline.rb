@@ -25,7 +25,8 @@ cask "quick-outline" do
   ]
 
   caveats <<~EOS
-    This application is ad-hoc signed. If macOS blocks it on first launch,
-    open it from System Settings > Privacy & Security.
+    This application is ad-hoc signed and may be blocked by macOS.
+    If you trust the app, try launching it first, then go to
+    System Settings > Privacy & Security > Open Anyway.
   EOS
 end
