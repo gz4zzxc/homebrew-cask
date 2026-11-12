@@ -23,11 +23,16 @@ cask "longbridge-desktop" do
 
   app "Longbridge.app"
 
+  uninstall quit: "com.longbridge.app.desktop"
+
   zap trash: [
     "~/Library/Application Support/Longbridge",
+    "~/Library/Caches/com.longbridge.app.desktop",
     "~/Library/Caches/longbridge",
+    "~/Library/HTTPStorages/com.longbridge.app.desktop.binarycookies",
     "~/Library/Logs/Longbridge",
     "~/Library/Preferences/com.longbridge.app.desktop.plist",
     "~/Library/Saved Application State/com.longbridge.app.desktop.savedState",
+    "~/Library/WebKit/com.longbridge.app.desktop",
   ]
 end
