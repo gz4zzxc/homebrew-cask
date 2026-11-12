@@ -7,25 +7,16 @@ on:
 
 permissions:
   contents: write
-  actions: read # 读取其他 workflow 状态
 
 concurrency:
-  group: update-catalyst-browse
-  cancel-in-progress: true
+  group: cask-update
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-
-      # 检查是否有其他更新正在进行
-      - name: Check for running updates
-        id: check-running
-        uses: ./.github/actions/check-concurrency
-        with:
-          workflow_name: "Update Catalyst Browse Cask"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check new version
         id: check
@@ -178,5 +169,4 @@ jobs:
           update_needed: ${{ steps.check.outputs.update_needed }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_version: ${{ steps.check.outputs.new_version }}
-          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
           workflow_name: "Update Catalyst Browse Cask"

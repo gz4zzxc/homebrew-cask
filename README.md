@@ -31,19 +31,19 @@ brew install --cask gz4zzxc/cask/quick-outline
 
 ```bash
 # 安装 Adobe Downloader
-brew install --cask adobe-downloader
+brew install --cask gz4zzxc/cask/adobe-downloader
 
 # 安装 Sony Catalyst Browse
-brew install --cask catalyst-browse
+brew install --cask gz4zzxc/cask/catalyst-browse
 
 # 安装欧路词典（使用本 tap 的版本）
 brew install --cask gz4zzxc/cask/eudic
 
 # 安装 QuickOutline
-brew install --cask quick-outline
+brew install --cask gz4zzxc/cask/quick-outline
 
 # 安装长桥Pro新版（原生重写版，可与经典版共存）
-brew install --cask longbridge-desktop
+brew install --cask gz4zzxc/cask/longbridge-desktop
 ```
 
 ### 3. 更新应用
