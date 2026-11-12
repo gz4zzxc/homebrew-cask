@@ -13,9 +13,6 @@ inputs:
   new_version:
     description: 'New version string'
     required: false
-  running_conflict:
-    description: 'Whether there was a running conflict'
-    required: false
   workflow_name:
     description: 'Name of the workflow'
     required: true
@@ -41,11 +38,7 @@ runs:
         else
           echo "Update: Not required or failed"
         fi
-        
-        if [[ "${{ inputs.running_conflict }}" == "true" ]]; then
-          echo "Conflict: Multiple updates detected"
-        fi
-        
+
         echo "::endgroup::"
         
         # 清理临时文件

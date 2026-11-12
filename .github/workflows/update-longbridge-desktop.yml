@@ -10,10 +10,12 @@ permissions:
 
 concurrency:
   group: cask-update
+  queue: max
   cancel-in-progress: false
 
 jobs:
   update:
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
