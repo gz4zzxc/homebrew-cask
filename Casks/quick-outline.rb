@@ -15,15 +15,18 @@ cask "quick-outline" do
   end
 
   auto_updates true
+  depends_on arch: :arm64
   depends_on :macos
 
   app "QuickOutline.app"
 
   zap trash: [
-    "~/Library/Application Support/QuickOutline",
-    "~/Library/Caches/QuickOutline",
-    "~/Library/Logs/QuickOutline",
-    "~/Library/Preferences/com.ririv.quickoutline.plist",
-    "~/Library/Saved Application State/QuickOutline.savedState",
+    "~/Library/Preferences/com.ririv.quickoutline.view.plist",
   ]
+
+  caveats <<~EOS
+    This application is ad-hoc signed and may be blocked by macOS.
+    If you trust the app, try launching it first, then go to
+    System Settings > Privacy & Security > Open Anyway.
+  EOS
 end
