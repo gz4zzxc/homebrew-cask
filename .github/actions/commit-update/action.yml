@@ -196,6 +196,7 @@ runs:
     - name: Commit and push
       shell: bash
       env:
+        GITHUB_REF: ${{ github.ref }}
         CASK_NAME: ${{ inputs.cask_name }}
         DISPLAY_NAME: ${{ inputs.display_name }}
         NEW_VERSION: ${{ inputs.new_version }}
@@ -206,6 +207,11 @@ runs:
         DOWNLOAD_URL: ${{ inputs.download_url }}
       run: |
         set -euo pipefail
+
+        if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+          echo "::error::Refusing to push an automated cask update from $GITHUB_REF; only main is allowed"
+          exit 1
+        fi
 
         # Fallback for DISPLAY_VERSION if empty
         NEW_VERSION_DISPLAY="${NEW_VERSION_DISPLAY:-$NEW_VERSION}"
@@ -250,4 +256,24 @@ runs:
           -m "$SHA256_MSG" \
           -m "- Updated README.md version table (display ${NEW_VERSION_DISPLAY})" \
           -m "- Source: ${DOWNLOAD_URL}"
-        git push
+
+        # Rebase against updates that landed after checkout, then retry a
+        # failed push in case another writer moved main between fetch and push.
+        for attempt in 1 2 3; do
+          if ! git pull --rebase origin main; then
+            git rebase --abort || true
+            echo "::error::Rebase onto origin/main failed; refusing to retry with unresolved conflicts"
+            exit 1
+          fi
+
+          if git push origin HEAD:main; then
+            exit 0
+          fi
+
+          if [[ "$attempt" -eq 3 ]]; then
+            echo "::error::Failed to push update after $attempt attempts"
+            exit 1
+          fi
+
+          echo "::warning::Push attempt $attempt failed; retrying"
+        done

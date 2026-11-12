@@ -2,30 +2,23 @@ name: Update Eudic Cask
 
 on:
   schedule:
-    - cron: "24 23 */3 * *" # 每 3 天检查一次
+    - cron: "24 23 */3 * *" # 每月 1、4、7...号检查一次
   workflow_dispatch: {}
 
 permissions:
   contents: write
-  actions: read # 读取其他 workflow 状态
 
 concurrency:
-  group: update-eudic
-  cancel-in-progress: true
+  group: cask-update
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   update:
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-
-      # 检查是否有其他更新正在进行
-      - name: Check for running updates
-        id: check-running
-        uses: ./.github/actions/check-concurrency
-        with:
-          workflow_name: "Update Eudic Cask"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check new version
         id: check
@@ -135,5 +128,4 @@ jobs:
           update_needed: ${{ steps.check.outputs.update_needed }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_version: ${{ steps.check.outputs.new_version }}
-          running_conflict: ${{ steps.check-running.outputs.running_conflict }}
           workflow_name: "Update Eudic Cask"
