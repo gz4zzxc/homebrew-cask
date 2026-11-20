@@ -1,11 +1,11 @@
 cask "longbridge-desktop" do
   arch arm: "aarch64", intel: "x86_64"
 
-  version "1.1.2"
-  sha256 arm:   "5d11818c6d87ffafaad1a56f9e24ddd547520575ebb90c6706c429c2183df622",
-         intel: "98041e7e3b8bcd85348c8fad2c688d64927317d959d356058b966ed7c01eff63"
+  version "1.2.0,g7595e75"
+  sha256 arm:   "0b389c7249467c2db06844b124d51b187cc26aeb65edce3612953e0ef55f5a9a",
+         intel: "a88e2275a374eeb518064ec2cb96bdb30515a65c74e7fd578fe85de8b4caaf07"
 
-  url "https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v#{version}-macos-#{arch}.dmg"
+  url "https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v#{version.csv.first}-#{version.csv.second}-macos-#{arch}.dmg"
   name "Longbridge"
   name "长桥证券"
   desc "Native cross-market securities trading client"
@@ -14,7 +14,10 @@ cask "longbridge-desktop" do
   livecheck do
     url "https://assets.lbkrs.com/github/release/longbridge-desktop/stable/latest.json"
     strategy :json do |json|
-      json["version"]
+      json["assets"].filter_map do |asset|
+        match = asset["name"].match(/longbridge-v(\d+(?:\.\d+)+)-g([0-9a-f]+)-macos-aarch64\.dmg/)
+        "#{match[1]},g#{match[2]}" if match
+      end
     end
   end
 
