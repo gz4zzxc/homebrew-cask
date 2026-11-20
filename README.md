@@ -24,13 +24,21 @@ brew upgrade --cask gz4zzxc/cask/quick-outline
 
 | 应用名称 | Cask 名称 | 当前版本 | 架构支持 | 官网/项目 |
 | --- | --- | --- | --- | --- |
-| 长桥 Pro 新版 | `longbridge-desktop` | 1.1.2 | ARM64 + Intel | [官网](https://longbridge.com/desktop/) |
+| 长桥 Pro 新版 | `longbridge-desktop` | 1.2.0 | ARM64 + Intel | [官网](https://longbridge.com/desktop/) |
 | 欧路词典 | `eudic` | 26.9.1 | Universal | [官网](https://www.eudic.net/) |
 | Adobe Downloader | `adobe-downloader` | 3.2.0 | Universal | [GitHub](https://github.com/X1a0He/Adobe-Downloader) |
 | Sony Catalyst Browse | `catalyst-browse` | 2026.1 | Universal | [官网](https://www.sony.net/catalyst) |
 | QuickOutline | `quick-outline` | 2.3.0 | ARM64 | [GitHub](https://github.com/ririv/QuickOutline) |
 
 长桥 Pro 新版为原生重写版，可与经典版共存。
+
+### 长桥 Pro 新版同版本重建说明
+
+上游自 1.2.0 起在安装包文件名中加入构建哈希，Cask 将其作为 `version` 的第二段（如 `1.2.0,g7595e75`）。若上游以相同语义版本重新构建，`Longbridge.app` 的 `CFBundleShortVersionString` 仍是 `1.2.0`，构建时间只记录在 `CFBundleVersion`，Homebrew 默认的 `auto_updates` 判断不会把它视为过期。遇到这种情况需要强制升级：
+
+```bash
+brew upgrade --cask --greedy-auto-updates gz4zzxc/cask/longbridge-desktop
+```
 
 ### 欧路词典下载说明
 

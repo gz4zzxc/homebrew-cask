@@ -44,9 +44,17 @@ jobs:
           ARM_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .sha256 // empty' | head -n1)
           INTEL_URL=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .url // empty' | head -n1)
           INTEL_EXPECTED_SHA=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-x86_64.dmg")) | .sha256 // empty' | head -n1)
+          ARM_ASSET_NAME=$(printf "%s" "$manifest" | jq -r '.assets[] | select(.name | endswith("macos-aarch64.dmg")) | .name // empty' | head -n1)
+          # 1.2.0+ asset names carry a git build hash: longbridge-v<version>-g<sha>-macos-<arch>.dmg
+          NEW_BUILD=$(printf "%s" "$ARM_ASSET_NAME" | sed -n 's/^longbridge-v.*-g\([0-9a-f]\{7,\}\)-macos-aarch64\.dmg$/\1/p')
 
           if [[ -z "${NEW_VERSION:-}" ]]; then
             echo "::error::Failed to parse Longbridge Desktop version."
+            exit 1
+          fi
+          if [[ ! "${NEW_BUILD:-}" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::Manifest macOS asset has no -g<sha> build suffix; manual update required."
+            echo "::error::manifest arm: $ARM_ASSET_NAME"
             exit 1
           fi
           if [[ -z "${ARM_URL:-}" || ! "${ARM_EXPECTED_SHA:-}" =~ ^[0-9a-f]{64}$ ]]; then
@@ -62,9 +70,10 @@ jobs:
           # automation never rewrites (commit-update only bumps version/sha256).
           # If upstream renames its assets, stop instead of committing a
           # version whose Cask URL would 404 on `brew upgrade`.
+          # The build hash is the second CSV component of the Cask `version`.
           # NOTE: keep these two lines in sync with Casks/longbridge-desktop.rb.
-          EXPECTED_ARM_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-aarch64.dmg"
-          EXPECTED_INTEL_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-macos-x86_64.dmg"
+          EXPECTED_ARM_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-g${NEW_BUILD}-macos-aarch64.dmg"
+          EXPECTED_INTEL_URL="https://assets.lbkrs.com/github/release/longbridge-desktop/stable/longbridge-v${NEW_VERSION}-g${NEW_BUILD}-macos-x86_64.dmg"
           if [[ "$ARM_URL" != "$EXPECTED_ARM_URL" || "$INTEL_URL" != "$EXPECTED_INTEL_URL" ]]; then
             echo "::error::Manifest asset URL no longer matches the Cask URL template; manual update required."
             echo "::error::manifest arm:   $ARM_URL"
@@ -72,15 +81,16 @@ jobs:
             exit 1
           fi
 
-          echo "Latest version: $NEW_VERSION"
+          NEW_CASK_VERSION="${NEW_VERSION},g${NEW_BUILD}"
+          echo "Latest version: $NEW_VERSION (build g$NEW_BUILD)"
 
-          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+          if [[ "$NEW_CASK_VERSION" == "$CURRENT_VERSION" ]]; then
             echo "::notice::Already at latest version: $CURRENT_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "::notice::New version available: $NEW_VERSION"
+          echo "::notice::New version available: $NEW_CASK_VERSION"
           echo "::endgroup::"
 
           echo "::group::Downloading files"
@@ -119,7 +129,8 @@ jobs:
           fi
           echo "::notice::SHA256 checksums match the release manifest"
 
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_version=$NEW_CASK_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_version_display=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
           echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
@@ -149,6 +160,7 @@ jobs:
           cask_name: longbridge-desktop
           display_name: "Longbridge Desktop"
           new_version: ${{ steps.check.outputs.new_version }}
+          new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
           new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
           new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
