@@ -32,6 +32,14 @@ brew upgrade --cask gz4zzxc/cask/quick-outline
 
 长桥 Pro 新版为原生重写版，可与经典版共存。
 
+### 长桥 Pro 新版同版本重建说明
+
+上游自 1.2.0 起在安装包文件名中加入构建哈希，Cask 将其作为 `version` 的第二段（如 `1.2.0,g7595e75`）。若上游以相同语义版本重新构建，`Longbridge.app` 的 `CFBundleShortVersionString` 仍是 `1.2.0`，构建时间只记录在 `CFBundleVersion`，Homebrew 默认的 `auto_updates` 判断不会把它视为过期。遇到这种情况需要强制升级：
+
+```bash
+brew upgrade --cask --greedy-auto-updates gz4zzxc/cask/longbridge-desktop
+```
+
 ### 欧路词典下载说明
 
 本 tap 保留欧路词典以跟进[欧路更新源](https://static.eudic.net/pkg/eudic_mac.xml)。2026-11-11 实测[官方 cask](https://github.com/Homebrew/homebrew-cask/blob/HEAD/Casks/e/eudic.rb) 的下载地址返回 26.5.0，当时更新源已提供 26.9.1，详见 [#33](https://github.com/gz4zzxc/homebrew-cask/issues/33)。上游下载地址不固定版本，新版发布后、本仓库更新校验和之前，安装或升级可能暂时因校验失败而中断。

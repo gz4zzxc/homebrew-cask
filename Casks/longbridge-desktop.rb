@@ -21,6 +21,9 @@ cask "longbridge-desktop" do
     end
   end
 
+  # Same-version rebuilds change only the build hash. Homebrew compares the
+  # app's CFBundleShortVersionString (the marketing version), so these updates
+  # require `brew upgrade --greedy-auto-updates`; see the README note.
   auto_updates true
   depends_on :macos
 
