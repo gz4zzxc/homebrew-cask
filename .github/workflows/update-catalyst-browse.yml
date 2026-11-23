@@ -38,7 +38,7 @@ jobs:
           fi
 
           URL_TOKEN=$(printf "%s" "$URL" | sed -E 's#^https://di\.update\.sony\.net/NEX/([^/]+)/Catalyst_Browse\.dmg$#\1#')
-          if [[ -z "${URL_TOKEN:-}" || "$URL_TOKEN" == "$URL" ]]; then
+          if [[ -z "${URL_TOKEN:-}" || "$URL_TOKEN" == "$URL" || ! "$URL_TOKEN" =~ ^[0-9A-Za-z._-]+$ ]]; then
             echo "::error::Failed to extract version token from download URL: $URL"
             exit 1
           fi
@@ -133,22 +133,6 @@ jobs:
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-      # 验证检查步骤的输出
-      - name: Validate check outputs
-        if: steps.check.outputs.update_needed == 'true'
-        run: |
-          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
-            echo "::error::New version is empty"
-            exit 1
-          fi
-
-          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
-            echo "::error::SHA256 is empty"
-            exit 1
-          fi
-
-          echo "::notice::All outputs validated successfully"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'

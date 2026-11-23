@@ -45,6 +45,11 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$TAG" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "::error::Invalid version tag format: $TAG"
+            exit 1
+          fi
+
           echo "Latest tag: $TAG"
 
           if [[ "$TAG" == "$CURRENT_VERSION" ]]; then
@@ -88,22 +93,6 @@ jobs:
           echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-      # 验证检查步骤的输出
-      - name: Validate check outputs
-        if: steps.check.outputs.update_needed == 'true'
-        run: |
-          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
-            echo "::error::New version is empty"
-            exit 1
-          fi
-
-          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
-            echo "::error::SHA256 is empty"
-            exit 1
-          fi
-
-          echo "::notice::All outputs validated successfully"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'

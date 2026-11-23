@@ -39,6 +39,7 @@ runs:
         DISPLAY_NAME: ${{ inputs.display_name }}
         NEW_VERSION: ${{ inputs.new_version }}
         OLD_VERSION: ${{ inputs.old_version }}
+        DISPLAY_VERSION: ${{ inputs.new_version_display }}
         DOWNLOAD_URL: ${{ inputs.download_url }}
         NEW_SHA256: ${{ inputs.new_sha256 }}
         NEW_SHA256_INTEL: ${{ inputs.new_sha256_intel }}
@@ -52,6 +53,11 @@ runs:
           exit 1
         fi
 
+        if [[ ! "$CASK_NAME" =~ ^[a-z0-9-]+$ ]]; then
+          echo "::error::Invalid cask_name format: $CASK_NAME"
+          exit 1
+        fi
+
         if [[ -z "$DISPLAY_NAME" ]]; then
           echo "::error::display_name is required but empty"
           exit 1
@@ -62,13 +68,33 @@ runs:
           exit 1
         fi
 
+        if [[ ! "$NEW_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z.,_-]*$ ]]; then
+          echo "::error::Invalid new_version format: $NEW_VERSION"
+          exit 1
+        fi
+
         if [[ -z "$OLD_VERSION" ]]; then
           echo "::error::old_version is required but empty"
           exit 1
         fi
 
+        if [[ ! "$OLD_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z.,_-]*$ ]]; then
+          echo "::error::Invalid old_version format: $OLD_VERSION"
+          exit 1
+        fi
+
+        if [[ -n "$DISPLAY_VERSION" && ! "$DISPLAY_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z.,_-]*$ ]]; then
+          echo "::error::Invalid new_version_display format: $DISPLAY_VERSION"
+          exit 1
+        fi
+
         if [[ -z "$DOWNLOAD_URL" ]]; then
           echo "::error::download_url is required but empty"
+          exit 1
+        fi
+
+        if [[ ! "$DOWNLOAD_URL" =~ ^https://[^[:space:]]+$ ]]; then
+          echo "::error::Invalid download_url format: $DOWNLOAD_URL"
           exit 1
         fi
 
@@ -86,6 +112,21 @@ runs:
 
         if [[ -n "$NEW_SHA256_ARM" ]] && [[ -z "$NEW_SHA256_INTEL" ]]; then
           echo "::error::new_sha256_intel is required when new_sha256_arm is provided"
+          exit 1
+        fi
+
+        if [[ -n "$NEW_SHA256" && ! "$NEW_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Invalid new_sha256 format: $NEW_SHA256"
+          exit 1
+        fi
+
+        if [[ -n "$NEW_SHA256_ARM" && ! "$NEW_SHA256_ARM" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Invalid new_sha256_arm format: $NEW_SHA256_ARM"
+          exit 1
+        fi
+
+        if [[ -n "$NEW_SHA256_INTEL" && ! "$NEW_SHA256_INTEL" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Invalid new_sha256_intel format: $NEW_SHA256_INTEL"
           exit 1
         fi
 
