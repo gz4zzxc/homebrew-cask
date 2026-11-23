@@ -48,7 +48,7 @@ jobs:
           # 1.2.0+ asset names carry a git build hash: longbridge-v<version>-g<sha>-macos-<arch>.dmg
           NEW_BUILD=$(printf "%s" "$ARM_ASSET_NAME" | sed -n 's/^longbridge-v.*-g\([0-9a-f]\{7,\}\)-macos-aarch64\.dmg$/\1/p')
 
-          if [[ -z "${NEW_VERSION:-}" ]]; then
+          if [[ -z "${NEW_VERSION:-}" || ! "$NEW_VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
             echo "::error::Failed to parse Longbridge Desktop version."
             exit 1
           fi
@@ -135,23 +135,6 @@ jobs:
           echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Validate check outputs
-        if: steps.check.outputs.update_needed == 'true'
-        run: |
-          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
-            echo "::error::New version is empty"
-            exit 1
-          fi
-          if [[ -z "${{ steps.check.outputs.new_sha256_arm }}" ]]; then
-            echo "::error::ARM SHA256 is empty"
-            exit 1
-          fi
-          if [[ -z "${{ steps.check.outputs.new_sha256_intel }}" ]]; then
-            echo "::error::Intel SHA256 is empty"
-            exit 1
-          fi
-          echo "::notice::All outputs validated successfully"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'

@@ -23,24 +23,32 @@ runs:
     - name: Final status report
       if: always()
       shell: bash
+      env:
+        WORKFLOW_NAME: ${{ inputs.workflow_name }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        JOB_STATUS: ${{ inputs.job_status }}
+        UPDATE_NEEDED: ${{ inputs.update_needed }}
+        OLD_VERSION: ${{ inputs.old_version }}
+        NEW_VERSION: ${{ inputs.new_version }}
       run: |
         echo "::group::Final Status Report"
-        echo "Workflow: ${{ inputs.workflow_name }}"
-        echo "Run ID: ${{ github.run_id }}"
-        echo "Run Attempt: ${{ github.run_attempt }}"
-        echo "Status: ${{ inputs.job_status }}"
+        echo "Workflow: $WORKFLOW_NAME"
+        echo "Run ID: $RUN_ID"
+        echo "Run Attempt: $RUN_ATTEMPT"
+        echo "Status: $JOB_STATUS"
         echo "Duration: Approximately $((SECONDS / 60))m $((SECONDS % 60))s"
-        
-        if [[ "${{ inputs.update_needed }}" == "true" ]]; then
+
+        if [[ "$UPDATE_NEEDED" == "true" ]]; then
           echo "Update: Required and processed"
-          echo "Old Version: ${{ inputs.old_version }}"
-          echo "New Version: ${{ inputs.new_version }}"
+          echo "Old Version: $OLD_VERSION"
+          echo "New Version: $NEW_VERSION"
         else
           echo "Update: Not required or failed"
         fi
 
         echo "::endgroup::"
-        
+
         # 清理临时文件
         rm -rf /tmp/cask-downloads
         echo "::notice::Temporary files cleaned up"

@@ -41,6 +41,11 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$SHORT" =~ ^[0-9]+(\.[0-9]+)+$ || ! "$BUILD" =~ ^[0-9A-Za-z._-]+$ ]]; then
+            echo "::error::Invalid Eudic version format (Short: $SHORT, Build: $BUILD)."
+            exit 1
+          fi
+
           NEW_VERSION="$SHORT,$BUILD"
           echo "Latest version: $NEW_VERSION (Short: $SHORT, Build: $BUILD)"
 
@@ -85,27 +90,6 @@ jobs:
           echo "new_version_display=$SHORT" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-      # 验证检查步骤的输出
-      - name: Validate check outputs
-        if: steps.check.outputs.update_needed == 'true'
-        run: |
-          if [[ -z "${{ steps.check.outputs.new_version }}" ]]; then
-            echo "::error::New version is empty"
-            exit 1
-          fi
-
-          if [[ -z "${{ steps.check.outputs.new_sha256 }}" ]]; then
-            echo "::error::SHA256 is empty"
-            exit 1
-          fi
-
-          if [[ -z "${{ steps.check.outputs.new_version_display }}" ]]; then
-            echo "::error::Version display is empty"
-            exit 1
-          fi
-
-          echo "::notice::All outputs validated successfully"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
