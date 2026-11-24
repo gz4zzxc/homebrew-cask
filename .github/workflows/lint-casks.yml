@@ -35,7 +35,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -43,20 +42,17 @@ jobs:
           check_all=false
           BASE_SHA=""
 
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            check_all=true
-          else
-            if [[ "$EVENT_NAME" == "pull_request" ]]; then
-              BASE_SHA="${PR_BASE_SHA:-}"
-            else
-              BASE_SHA="${PUSH_BEFORE_SHA:-}"
-            fi
-
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE_SHA="${PR_BASE_SHA:-}"
             if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
               check_all=true
             elif [[ -n "$(git diff --name-only "$BASE_SHA" HEAD -- .github/workflows/lint-casks.yml)" ]]; then
               check_all=true
             fi
+          else
+            # Run full validation on main pushes and manual runs so concurrent
+            # push cancellations cannot skip casks touched by earlier pushes.
+            check_all=true
           fi
 
           declare -a files=()
@@ -69,14 +65,16 @@ jobs:
           fi
 
           declare -a tokens=()
-          for path in "${files[@]}"; do
-            [[ -f "$path" ]] || continue
-            if [[ ! "$path" =~ ^Casks/([a-z0-9-]+)\.rb$ ]]; then
-              echo "::error::Invalid cask path: $path"
-              exit 1
-            fi
-            tokens+=("${BASH_REMATCH[1]}")
-          done
+          if [[ "${#files[@]}" -gt 0 ]]; then
+            for path in "${files[@]}"; do
+              [[ -f "$path" ]] || continue
+              if [[ ! "$path" =~ ^Casks/([a-z0-9-]+)\.rb$ ]]; then
+                echo "::error::Invalid cask path: $path"
+                exit 1
+              fi
+              tokens+=("${BASH_REMATCH[1]}")
+            done
+          fi
 
           if [[ "${#tokens[@]}" -eq 0 ]]; then
             echo "::notice::No added or modified casks to validate"
