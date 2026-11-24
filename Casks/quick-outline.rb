@@ -20,9 +20,7 @@ cask "quick-outline" do
 
   app "QuickOutline.app"
 
-  zap trash: [
-    "~/Library/Preferences/com.ririv.quickoutline.view.plist",
-  ]
+  zap trash: "~/Library/Preferences/com.ririv.quickoutline.view.plist"
 
   caveats <<~EOS
     This application is ad-hoc signed and may be blocked by macOS.
