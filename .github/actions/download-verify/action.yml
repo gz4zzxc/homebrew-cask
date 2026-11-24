@@ -68,7 +68,7 @@ runs:
         echo "Downloading from: $URL"
 
         mkdir -p "$(dirname "$OUTPUT_PATH")"
-        curl_args=(--retry 5 --retry-all-errors --retry-delay 2 -fSL)
+        curl_args=(--proto '=https' --proto-redir '=https' --retry 5 --retry-all-errors --retry-delay 2 -fSL)
         if [[ -n "$USER_AGENT" ]]; then
           curl_args+=(-A "$USER_AGENT")
         fi

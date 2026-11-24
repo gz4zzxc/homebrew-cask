@@ -38,12 +38,20 @@ runs:
         echo "Run Attempt: $RUN_ATTEMPT"
         echo "Status: $JOB_STATUS"
 
-        if [[ "$UPDATE_NEEDED" == "true" ]]; then
+        if [[ "$JOB_STATUS" != "success" ]]; then
+          echo "Update: Failed or cancelled ($JOB_STATUS)"
+          if [[ -n "$OLD_VERSION" ]]; then
+            echo "Old Version: $OLD_VERSION"
+          fi
+          if [[ -n "$NEW_VERSION" ]]; then
+            echo "New Version: $NEW_VERSION"
+          fi
+        elif [[ "$UPDATE_NEEDED" == "true" ]]; then
           echo "Update: Required and processed"
           echo "Old Version: $OLD_VERSION"
           echo "New Version: $NEW_VERSION"
         else
-          echo "Update: Not required or failed"
+          echo "Update: Not required"
         fi
 
         echo "::endgroup::"
