@@ -17,6 +17,7 @@ jobs:
   update:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -93,48 +94,34 @@ jobs:
           echo "::notice::New version available: $NEW_CASK_VERSION"
           echo "::endgroup::"
 
-          echo "::group::Downloading files"
-          echo "ARM URL: $ARM_URL"
-          mkdir -p /tmp/cask-downloads
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$ARM_URL" -o /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-arm64.dmg
-          echo "Intel URL: $INTEL_URL"
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$INTEL_URL" -o /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-x64.dmg
-
-          for file in /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-*.dmg; do
-            if [[ ! -f "$file" ]]; then
-              echo "::error::Download failed for $file"
-              exit 1
-            fi
-
-            FILE_SIZE=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo "0")
-            if [[ "$FILE_SIZE" -lt 30000000 ]]; then
-              echo "::error::Downloaded file $file is too small (${FILE_SIZE} bytes)"
-              exit 1
-            fi
-            echo "::notice::Downloaded $(basename "$file") - ${FILE_SIZE} bytes"
-          done
-          echo "::endgroup::"
-
-          ARM_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-arm64.dmg | awk '{print $1}')
-          INTEL_SHA=$(shasum -a 256 /tmp/cask-downloads/longbridge-desktop-${NEW_VERSION}-mac-x64.dmg | awk '{print $1}')
-
-          # Fail closed: the downloaded files must match the manifest checksums.
-          if [[ "$ARM_SHA" != "$ARM_EXPECTED_SHA" ]]; then
-            echo "::error::ARM SHA256 mismatch (downloaded $ARM_SHA, manifest says $ARM_EXPECTED_SHA)."
-            exit 1
-          fi
-          if [[ "$INTEL_SHA" != "$INTEL_EXPECTED_SHA" ]]; then
-            echo "::error::Intel SHA256 mismatch (downloaded $INTEL_SHA, manifest says $INTEL_EXPECTED_SHA)."
-            exit 1
-          fi
-          echo "::notice::SHA256 checksums match the release manifest"
-
           echo "new_version=$NEW_CASK_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_version_display=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_sha256_arm=$ARM_SHA" >> "$GITHUB_OUTPUT"
-          echo "new_sha256_intel=$INTEL_SHA" >> "$GITHUB_OUTPUT"
-          echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "arm_url=$ARM_URL" >> "$GITHUB_OUTPUT"
+          echo "arm_expected_sha=$ARM_EXPECTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "intel_url=$INTEL_URL" >> "$GITHUB_OUTPUT"
+          echo "intel_expected_sha=$INTEL_EXPECTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify ARM64
+        id: download_arm
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/download-verify
+        with:
+          url: ${{ steps.check.outputs.arm_url }}
+          output_path: /tmp/cask-downloads/longbridge-desktop-${{ steps.check.outputs.new_version_display }}-mac-arm64.dmg
+          min_size: "30000000"
+          expected_sha256: ${{ steps.check.outputs.arm_expected_sha }}
+
+      - name: Download and verify Intel
+        id: download_intel
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/download-verify
+        with:
+          url: ${{ steps.check.outputs.intel_url }}
+          output_path: /tmp/cask-downloads/longbridge-desktop-${{ steps.check.outputs.new_version_display }}-mac-x64.dmg
+          min_size: "30000000"
+          expected_sha256: ${{ steps.check.outputs.intel_expected_sha }}
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
@@ -145,8 +132,8 @@ jobs:
           new_version: ${{ steps.check.outputs.new_version }}
           new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
-          new_sha256_intel: ${{ steps.check.outputs.new_sha256_intel }}
-          new_sha256_arm: ${{ steps.check.outputs.new_sha256_arm }}
+          new_sha256_intel: ${{ steps.download_intel.outputs.sha256 }}
+          new_sha256_arm: ${{ steps.download_arm.outputs.sha256 }}
           download_url: "https://assets.lbkrs.com/github/release/longbridge-desktop/stable/latest.json"
 
       - name: Final status report

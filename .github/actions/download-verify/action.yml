@@ -1,0 +1,107 @@
+name: 'Download and Verify'
+description: 'Downloads a release asset over HTTPS, verifies minimum size and SHA256 checksum'
+inputs:
+  url:
+    description: 'HTTPS download URL'
+    required: true
+  output_path:
+    description: 'Local destination file path'
+    required: true
+  min_size:
+    description: 'Minimum expected file size in bytes'
+    required: true
+  expected_sha256:
+    description: 'Optional expected 64-character lowercase hex SHA256 checksum'
+    required: false
+  user_agent:
+    description: 'Optional User-Agent header value'
+    required: false
+  referer:
+    description: 'Optional Referer header value'
+    required: false
+
+outputs:
+  sha256:
+    description: 'Computed SHA256 checksum of the downloaded file'
+    value: ${{ steps.download.outputs.sha256 }}
+  file_size:
+    description: 'Size of the downloaded file in bytes'
+    value: ${{ steps.download.outputs.file_size }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download and verify file
+      id: download
+      shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        OUTPUT_PATH: ${{ inputs.output_path }}
+        MIN_SIZE: ${{ inputs.min_size }}
+        EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+        USER_AGENT: ${{ inputs.user_agent }}
+        REFERER: ${{ inputs.referer }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$URL" =~ ^https://[^[:space:]]+$ ]]; then
+          echo "::error::Invalid download URL: $URL"
+          exit 1
+        fi
+
+        if [[ -z "$OUTPUT_PATH" ]]; then
+          echo "::error::output_path is required but empty"
+          exit 1
+        fi
+
+        if [[ ! "$MIN_SIZE" =~ ^[0-9]+$ ]]; then
+          echo "::error::Invalid min_size: $MIN_SIZE"
+          exit 1
+        fi
+
+        if [[ -n "$EXPECTED_SHA256" && ! "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Invalid expected_sha256 format: $EXPECTED_SHA256"
+          exit 1
+        fi
+
+        echo "::group::Downloading file"
+        echo "Downloading from: $URL"
+
+        mkdir -p "$(dirname "$OUTPUT_PATH")"
+        curl_args=(--retry 5 --retry-all-errors --retry-delay 2 -fSL)
+        if [[ -n "$USER_AGENT" ]]; then
+          curl_args+=(-A "$USER_AGENT")
+        fi
+        if [[ -n "$REFERER" ]]; then
+          curl_args+=(-H "Referer: $REFERER")
+        fi
+
+        curl "${curl_args[@]}" "$URL" -o "$OUTPUT_PATH"
+
+        if [[ ! -f "$OUTPUT_PATH" ]]; then
+          echo "::error::Download failed - file not found: $OUTPUT_PATH"
+          exit 1
+        fi
+
+        FILE_SIZE=$(stat -f%z "$OUTPUT_PATH" 2>/dev/null || stat -c%s "$OUTPUT_PATH" 2>/dev/null || echo "0")
+        if [[ "$FILE_SIZE" -lt "$MIN_SIZE" ]]; then
+          echo "::error::Downloaded file is too small (${FILE_SIZE} bytes, expected >= ${MIN_SIZE})"
+          exit 1
+        fi
+
+        echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
+        echo "::endgroup::"
+
+        SHA=$(shasum -a 256 "$OUTPUT_PATH" | awk '{print $1}')
+        if [[ ! "$SHA" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "::error::Failed to compute valid SHA256 checksum: $SHA"
+          exit 1
+        fi
+
+        if [[ -n "$EXPECTED_SHA256" && "$SHA" != "$EXPECTED_SHA256" ]]; then
+          echo "::error::SHA256 mismatch (downloaded $SHA, expected $EXPECTED_SHA256)"
+          exit 1
+        fi
+
+        echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+        echo "file_size=$FILE_SIZE" >> "$GITHUB_OUTPUT"

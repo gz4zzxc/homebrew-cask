@@ -37,7 +37,6 @@ runs:
         echo "Run ID: $RUN_ID"
         echo "Run Attempt: $RUN_ATTEMPT"
         echo "Status: $JOB_STATUS"
-        echo "Duration: Approximately $((SECONDS / 60))m $((SECONDS % 60))s"
 
         if [[ "$UPDATE_NEEDED" == "true" ]]; then
           echo "Update: Required and processed"
@@ -48,7 +47,3 @@ runs:
         fi
 
         echo "::endgroup::"
-
-        # 清理临时文件
-        rm -rf /tmp/cask-downloads
-        echo "::notice::Temporary files cleaned up"
