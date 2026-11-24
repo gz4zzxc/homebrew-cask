@@ -17,18 +17,19 @@ jobs:
   update:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check new version
-        id: check
+      - name: Resolve download URL
+        id: resolve
         shell: bash
         run: |
           set -euo pipefail
           DOWNLOAD_ENTRY_URL="https://support.d-imaging.sony.co.jp/disoft_DL/CatalystBrowse_DL/mac?fm=en"
           CURRENT_VERSION=$(sed -n 's/^  version \"\(.*\)\"/\1/p' Casks/catalyst-browse.rb)
 
-          echo "::group::Checking for new version"
+          echo "::group::Resolving download URL"
           echo "Current version: $CURRENT_VERSION"
 
           URL=$(curl -fsSLI "$DOWNLOAD_ENTRY_URL" | awk 'tolower($1) == "location:" {gsub(/\r/, "", $2); print $2}' | tail -n1)
@@ -47,37 +48,32 @@ jobs:
           echo "Resolved URL token: $URL_TOKEN"
           echo "::endgroup::"
 
-          echo "::group::Downloading file"
-          echo "Downloading from: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "url_token=$URL_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
-          mkdir -p /tmp/cask-downloads
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL \
-            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
-            -H "Referer: https://www.sony.com/" \
-            "$URL" -o /tmp/cask-downloads/catalyst-browse.dmg
+      - name: Download and verify
+        id: download
+        uses: ./.github/actions/download-verify
+        with:
+          url: ${{ steps.resolve.outputs.url }}
+          output_path: /tmp/cask-downloads/catalyst-browse.dmg
+          min_size: "10000000"
+          user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          referer: "https://www.sony.com/"
 
-          # 验证下载的文件
-          if [[ ! -f /tmp/cask-downloads/catalyst-browse.dmg ]]; then
-            echo "::error::Download failed - file not found"
-            exit 1
-          fi
+      - name: Check package version
+        id: check
+        shell: bash
+        env:
+          URL_TOKEN: ${{ steps.resolve.outputs.url_token }}
+          OLD_VERSION: ${{ steps.resolve.outputs.old_version }}
+        run: |
+          set -euo pipefail
 
-          # 检查文件大小
-          FILE_SIZE=$(stat -f%z /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || stat -c%s /tmp/cask-downloads/catalyst-browse.dmg 2>/dev/null || echo "0")
-
-          if [[ "$FILE_SIZE" -lt 10000000 ]]; then
-            echo "::error::Downloaded file is too small - possible corruption"
-            exit 1
-          fi
-
-          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
-          echo "::endgroup::"
-
-          # 🔒 重要：验证下载文件中实际包含的版本号
-          echo "::group::Validating actual package version"
+          echo "::group::Checking actual package version"
           echo "Expected URL token: $URL_TOKEN"
 
-          # 挂载 DMG 并检查实际 PKG 版本
           MOUNTPOINT=$(mktemp -d /tmp/catalyst-browse-mnt-XXXX)
           cleanup() { hdiutil detach "$MOUNTPOINT" -quiet || true; }
           trap cleanup EXIT
@@ -101,38 +97,20 @@ jobs:
 
           NEW_VERSION="$ACTUAL_VERSION,$URL_TOKEN"
           echo "Latest version: $NEW_VERSION"
-
-          # 版本规范化：去除末尾无意义的 .0 以避免 2025.2 vs 2025.2.0 误报
-          normalize_version() { echo "$1" | sed -E 's/(\.0)+$//'; }
-          EXPECTED_NORM=$(normalize_version "${NEW_VERSION%%,*}")
-          ACTUAL_NORM=$(normalize_version "$ACTUAL_VERSION")
-
-          if [[ "$ACTUAL_NORM" != "$EXPECTED_NORM" ]]; then
-            echo "::error::Version mismatch detected!"
-            echo "Website version: $NEW_VERSION (normalized: $EXPECTED_NORM)"
-            echo "PKG actual version: $ACTUAL_VERSION (normalized: $ACTUAL_NORM)"
-            echo "This indicates an issue with Sony's release - aborting update"
-            exit 1
-          fi
-
-          echo "::notice::Version validation passed - versions match"
           echo "::endgroup::"
 
-          if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
-            echo "::notice::Already at latest version: $CURRENT_VERSION"
+          if [[ "$NEW_VERSION" == "$OLD_VERSION" ]]; then
+            echo "::notice::Already at latest version: $OLD_VERSION"
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "::notice::New version available: $NEW_VERSION"
 
-          SHA=$(shasum -a 256 /tmp/cask-downloads/catalyst-browse.dmg | awk '{print $1}')
-
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_version_display=${NEW_VERSION%%,*}" >> "$GITHUB_OUTPUT"
-          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "new_version_display=$ACTUAL_VERSION" >> "$GITHUB_OUTPUT"
           echo "update_needed=true" >> "$GITHUB_OUTPUT"
-          echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
@@ -143,7 +121,7 @@ jobs:
           new_version: ${{ steps.check.outputs.new_version }}
           new_version_display: ${{ steps.check.outputs.new_version_display }}
           old_version: ${{ steps.check.outputs.old_version }}
-          new_sha256: ${{ steps.check.outputs.new_sha256 }}
+          new_sha256: ${{ steps.download.outputs.sha256 }}
           download_url: "https://support.d-imaging.sony.co.jp/disoft_DL/CatalystBrowse_DL/mac?fm=en"
 
       # 最终状态报告

@@ -17,6 +17,7 @@ jobs:
   update:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -38,7 +39,7 @@ jobs:
             curl_headers+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
           fi
           json=$(curl -fsSL "${curl_headers[@]}" "$API")
-          TAG=$(printf "%s" "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+          TAG=$(printf "%s" "$json" | jq -r '.tag_name // empty')
 
           if [[ -z "${TAG:-}" ]]; then
             echo "::error::Failed to parse latest GitHub tag."
@@ -58,41 +59,30 @@ jobs:
             exit 0
           fi
 
+          if [[ "$(printf '%s\n' "$CURRENT_VERSION" "$TAG" | sort -V | tail -n1)" != "$TAG" ]]; then
+            echo "::notice::Latest tag ${TAG} is not newer than ${CURRENT_VERSION}; leaving unchanged."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           echo "::notice::New version available: $TAG"
           echo "::endgroup::"
 
           URL="https://github.com/X1a0He/Adobe-Downloader/releases/download/${TAG}/Adobe.Downloader.dmg"
 
-          echo "::group::Downloading file"
-          echo "Downloading from: $URL"
-
-          # 并行下载以提高性能
-          mkdir -p /tmp/cask-downloads
-          curl --retry 5 --retry-all-errors --retry-delay 2 -fSL "$URL" -o /tmp/cask-downloads/adobe-downloader.dmg
-
-          # 验证下载的文件
-          if [[ ! -f /tmp/cask-downloads/adobe-downloader.dmg ]]; then
-            echo "::error::Download failed - file not found"
-            exit 1
-          fi
-
-          # 检查文件大小
-          FILE_SIZE=$(stat -c%s /tmp/cask-downloads/adobe-downloader.dmg 2>/dev/null || stat -f%z /tmp/cask-downloads/adobe-downloader.dmg 2>/dev/null || echo "0")
-
-          if [[ "$FILE_SIZE" -lt 3000000 ]]; then
-            echo "::error::Downloaded file is too small - possible corruption"
-            exit 1
-          fi
-
-          echo "::notice::File downloaded successfully - ${FILE_SIZE} bytes"
-          echo "::endgroup::"
-
-          SHA=$(shasum -a 256 /tmp/cask-downloads/adobe-downloader.dmg | awk '{print $1}')
-
           echo "new_version=$TAG" >> "$GITHUB_OUTPUT"
-          echo "new_sha256=$SHA" >> "$GITHUB_OUTPUT"
-          echo "update_needed=true" >> "$GITHUB_OUTPUT"
           echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "download_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "update_needed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify
+        id: download
+        if: steps.check.outputs.update_needed == 'true'
+        uses: ./.github/actions/download-verify
+        with:
+          url: ${{ steps.check.outputs.download_url }}
+          output_path: /tmp/cask-downloads/adobe-downloader.dmg
+          min_size: "3000000"
 
       - name: Commit and push
         if: steps.check.outputs.update_needed == 'true'
@@ -102,8 +92,8 @@ jobs:
           display_name: "Adobe Downloader"
           new_version: ${{ steps.check.outputs.new_version }}
           old_version: ${{ steps.check.outputs.old_version }}
-          new_sha256: ${{ steps.check.outputs.new_sha256 }}
-          download_url: "https://github.com/X1a0He/Adobe-Downloader/releases/latest"
+          new_sha256: ${{ steps.download.outputs.sha256 }}
+          download_url: "https://github.com/X1a0He/Adobe-Downloader/releases/tag/${{ steps.check.outputs.new_version }}"
 
       # 最终状态报告
       - name: Final status report
