@@ -1,0 +1,125 @@
+name: Lint Casks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Casks/**"
+      - ".github/workflows/lint-casks.yml"
+  pull_request:
+    paths:
+      - "Casks/**"
+      - ".github/workflows/lint-casks.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-casks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find casks to validate
+        id: targets
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          check_all=false
+          BASE_SHA=""
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE_SHA="${PR_BASE_SHA:-}"
+            if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              check_all=true
+            elif [[ -n "$(git diff --name-only "$BASE_SHA" HEAD -- .github/workflows/lint-casks.yml)" ]]; then
+              check_all=true
+            fi
+          else
+            # Run full validation on main pushes and manual runs so concurrent
+            # push cancellations cannot skip casks touched by earlier pushes.
+            check_all=true
+          fi
+
+          declare -a files=()
+          if [[ "$check_all" == "true" ]]; then
+            files=(Casks/*.rb)
+          else
+            while IFS= read -r path; do
+              [[ -n "$path" ]] && files+=("$path")
+            done < <(git -c core.quotepath=false diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- 'Casks/*.rb')
+          fi
+
+          declare -a tokens=()
+          if [[ "${#files[@]}" -gt 0 ]]; then
+            for path in "${files[@]}"; do
+              [[ -f "$path" ]] || continue
+              if [[ ! "$path" =~ ^Casks/([a-z0-9-]+)\.rb$ ]]; then
+                echo "::error::Invalid cask path: $path"
+                exit 1
+              fi
+              tokens+=("${BASH_REMATCH[1]}")
+            done
+          fi
+
+          if [[ "${#tokens[@]}" -eq 0 ]]; then
+            echo "::notice::No added or modified casks to validate"
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "casks=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Casks to validate: ${tokens[*]}"
+          echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          echo "casks=${tokens[*]}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate casks
+        if: steps.targets.outputs.has_targets == 'true'
+        shell: bash
+        env:
+          TARGET_CASKS: ${{ steps.targets.outputs.casks }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+
+          read -ra CASKS <<< "$TARGET_CASKS"
+          if [[ "${#CASKS[@]}" -eq 0 ]]; then
+            echo "::error::TARGET_CASKS is unexpectedly empty"
+            exit 1
+          fi
+
+          declare -a QUALIFIED_CASKS=()
+          for cask in "${CASKS[@]}"; do
+            if [[ ! "$cask" =~ ^[a-z0-9-]+$ ]]; then
+              echo "::error::Invalid cask token: $cask"
+              exit 1
+            fi
+            ruby -c "Casks/${cask}.rb"
+            QUALIFIED_CASKS+=("${GITHUB_REPOSITORY}/${cask}")
+          done
+
+          TAP_DIR="$(brew --repository)/Library/Taps/${GITHUB_REPOSITORY}"
+          if [[ -d "$TAP_DIR" && ! -L "$TAP_DIR" ]]; then
+            rm -rf "$TAP_DIR"
+          fi
+          mkdir -p "$(dirname "$TAP_DIR")"
+          ln -sf "$(pwd)" "$TAP_DIR"
+
+          brew trust "$GITHUB_REPOSITORY"
+          brew style "${QUALIFIED_CASKS[@]}"
+          brew audit --cask --strict "${QUALIFIED_CASKS[@]}"
